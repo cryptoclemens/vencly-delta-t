@@ -1018,7 +1018,7 @@ function InputColumn({ inputs, setInput, outputs }) {
             value={tR} onChange={v => setInput('tR', v)}
             tooltip="Temperatur des in den Aquifer zurückgepumpten Wassers"
             info={<><strong>Was ist das?</strong>Temperatur des abgekühlten Wassers, das wieder in den Aquifer eingepumpt wird.<strong>Einfluss auf andere Werte</strong>ΔT = T<sub>GW</sub> − T<sub>R</sub>: je niedriger T<sub>R</sub>, desto mehr Wärme pro Dublette – aber auch kürzere Durchbruchszeit!<br/>Optimum: T<sub>R</sub> so hoch wie technisch möglich (Lebensdauer), aber so niedrig wie nötig (Leistung).<strong>Wissenschaftlicher Hinweis</strong><em>Studien zeigen: T<sub>R</sub> zwischen 20–40 °C ist typisch. Zu kalte Reinjektion verursacht früheren thermischen Durchbruch (Willems et al. 2017).</em></>} />
-          <ParamSlider label="Bohrloch-Abstand" unit="m" min={20} max={500} step={5}
+          <ParamSlider label="Bohrloch-Abstand" unit="m" min={20} max={2000} step={10}
             value={abstand} onChange={v => setInput('abstand', Math.round(v))}
             tooltip="Horizontaler Abstand zwischen Förder- und Reinjektionsbohrung"
             info={<><strong>Was ist das?</strong>Horizontalabstand zwischen Förder- und Reinjektionsbohrung an der Oberfläche.<strong>Einfluss auf andere Werte</strong>Durchbruchszeit ~ d² (quadratisch! – doppelter Abstand = 4× längere Lebensdauer).<br/>Der optimale Abstand für t<sub>break</sub> = 25 Jahre wird automatisch berechnet und angezeigt.<strong>Wissenschaftlicher Hinweis</strong><em>Hannover-Studie (2024): 500 m Abstand erzielt &gt;30 Jahre Lebensdauer bei 0,5–2 MW. Für heterogene Aquifere Sicherheitsfaktor 1,5–2,0 einplanen.</em></>} />
