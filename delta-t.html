@@ -286,6 +286,7 @@
     .badge-green  { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
     .badge-yellow { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-orange { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+    .badge-red    { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .rec-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border-bottom: 1px solid #f0f4f9; font-size: 12px; }
     .rec-row:last-child { border-bottom: none; }
     .rec-key { color: var(--text-muted); }
@@ -511,16 +512,23 @@ function calculateSystem(inp) {
     ? (qThGesamt * 1000) / (U * lmtd)
     : null;
 
-  // WP type
+  // WP type — basierend auf Temperaturhub ΔT_hub = T_VL − T_GW
+  // Quellen: VDI 4640 Bl. 4 (Direktnutzung ≤ 0 K Hub),
+  //          EN 14511 (Standard-WP, Hub ≤ 35 K),
+  //          Arpagaus et al. (2018) Energy – High-temperature HP review (Hub 35–60 K),
+  //          Zühlsdorf et al. (2019) JRSE – Ultra-high lift HP / ORC (Hub > 60 K)
+  const tHub = tVL - tGW;
   let wpType, wpColor;
-  if (tGW >= tVL - 5)     { wpType = '✔ Direktnutzung möglich';               wpColor = 'green'; }
-  else if (tGW >= 50)     { wpType = '⚡ Hochtemperatur-WP empfohlen';          wpColor = 'yellow'; }
-  else                    { wpType = '🔵 Standard-WP erforderlich';             wpColor = 'orange'; }
+  if (tHub <= 0)       { wpType = '✔ Direktnutzung möglich (kein Hub)';             wpColor = 'green'; }
+  else if (tHub <= 35) { wpType = '🔵 Standard-WP geeignet (Hub ≤ 35 K)';           wpColor = 'green'; }
+  else if (tHub <= 60) { wpType = '⚡ Hochtemperatur-WP erforderlich (Hub 35–60 K)'; wpColor = 'yellow'; }
+  else                 { wpType = '🔴 Industrielle HT-WP / ORC prüfen (Hub > 60 K)'; wpColor = 'red'; }
 
   let wpModel;
-  if (tVL <= 65)          { wpModel = 'Standard-Sole-Wasser-WP (z.B. Viessmann Vitocal)'; }
-  else if (tVL <= 90)     { wpModel = 'Hochtemperatur-WP (z.B. Ochsner GMWW, Vaillant flexoTHERM)'; }
-  else                    { wpModel = 'Industrielle HT-WP oder ORC-Prozess prüfen'; }
+  if (tHub <= 0)       { wpModel = 'Direkteinspeisung ins Netz (kein WP-Aufwand)'; }
+  else if (tHub <= 35) { wpModel = 'Standard Sole-Wasser-WP (z.B. Viessmann Vitocal, Vaillant geoTHERM)'; }
+  else if (tHub <= 60) { wpModel = 'Hochtemperatur-WP (z.B. Ochsner GMWW, Enwave HT-WP 90 °C)'; }
+  else                 { wpModel = 'Industrielle HT-WP oder ORC-Prozess (Projekt-Engineering erforderlich)'; }
 
   // Material
   let material, materialColor;
@@ -1140,11 +1148,15 @@ function SecondaryColumn({ inputs, outputs }) {
       <div className="rec-card">
         <div className="rec-header">🌡 Wärmepumpen-Temperaturniveau</div>
         <div className="rec-body">
-          <div className={`rec-badge badge-${wpColor === 'green' ? 'green' : wpColor === 'yellow' ? 'yellow' : 'orange'}`}>
+          <div className={`rec-badge badge-${wpColor === 'green' ? 'green' : wpColor === 'yellow' ? 'yellow' : 'red'}`}>
             {wpType}
           </div>
           <div className="rec-row"><span className="rec-key">Empfohlener WP-Typ</span><span className="rec-val">{wpModel}</span></div>
           <div className="rec-row"><span className="rec-key">T<sub>GW</sub> / T<sub>VL</sub></span><span className="rec-val">{inputs.tGW}°C / {inputs.tVL}°C</span></div>
+          <div className="rec-row"><span className="rec-key">ΔT<sub>Hub</sub> (T<sub>VL</sub>−T<sub>GW</sub>)</span><span className="rec-val">{(inputs.tVL - inputs.tGW).toFixed(0)} K</span></div>
+          <div className="rec-row" style={{fontSize:'10px',color:'#6b7280',marginTop:'4px'}}>
+            Quelle: VDI 4640 Bl. 4 · EN 14511 · Arpagaus et al. 2018 · Zühlsdorf et al. 2019
+          </div>
         </div>
       </div>
 
