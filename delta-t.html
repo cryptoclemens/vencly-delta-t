@@ -335,6 +335,25 @@
       transition: background 0.15s, color 0.15s;
     }
     .footer-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    /* ── Cookie Banner ── */
+    #cookie-banner {
+      position: fixed; bottom: 48px; left: 0; right: 0; z-index: 9000;
+      background: #1a2f50; border-top: 1px solid rgba(255,255,255,0.12);
+      padding: 12px 20px; display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap;
+    }
+    #cookie-banner p { font-size: 12px; color: rgba(255,255,255,0.8); margin: 0; flex: 1; min-width: 200px; line-height: 1.5; }
+    #cookie-banner a { color: #7eb8f7; text-decoration: underline; cursor: pointer; }
+    .cookie-btn-accept {
+      font-size: 12px; font-weight: 600; padding: 6px 18px; border-radius: 7px;
+      border: none; background: #2E75B6; color: #fff; cursor: pointer; white-space: nowrap;
+    }
+    .cookie-btn-accept:hover { background: #1a5fa0; }
+    .cookie-btn-decline {
+      font-size: 12px; font-weight: 500; padding: 6px 14px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.25); background: transparent; color: rgba(255,255,255,0.65); cursor: pointer; white-space: nowrap;
+    }
+    .cookie-btn-decline:hover { background: rgba(255,255,255,0.08); color: #fff; }
     /* ── Modal overlay ── */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 10000;
@@ -1446,6 +1465,42 @@ function Topbar({ showLeft, setShowLeft, showRight, setShowRight }) {
 }
 
 /* ═══════════════════════════════════════════════
+   COOKIE BANNER
+═══════════════════════════════════════════════ */
+const COOKIE_KEY    = 'deltat_cookie_consent';
+const STORAGE_KEY   = 'deltat_inputs';
+const DEFAULT_INPUTS = {
+  tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 16, tds: 500,
+  Q: 15, tR: 12, abstand: 100,
+  zielLeistung: 5000, tVL: 90, tRL: 55,
+};
+
+function loadSavedInputs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // validate — must have all keys and numeric values
+    if (Object.keys(DEFAULT_INPUTS).every(k => typeof parsed[k] === 'number')) return parsed;
+  } catch(e) {}
+  return null;
+}
+
+function CookieBanner({ onAccept, onDecline, onShowImpressum }) {
+  return (
+    <div id="cookie-banner">
+      <p>
+        Wir verwenden <strong>funktionale Cookies</strong> (localStorage), um deine Eingabewerte für den nächsten Besuch zu speichern.
+        Keine Tracking- oder Werbe-Cookies. Weitere Informationen im{' '}
+        <a onClick={onShowImpressum}>Impressum</a>.
+      </p>
+      <button className="cookie-btn-decline" onClick={onDecline}>Ablehnen</button>
+      <button className="cookie-btn-accept"  onClick={onAccept}>Akzeptieren</button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
    APP ROOT
 ═══════════════════════════════════════════════ */
 function App() {
@@ -1453,10 +1508,34 @@ function App() {
   const [showRight, setShowRight] = useState(false);
   const [logEntries, setLogEntries] = useState([]);
 
-  const [inputs, setInputs] = useState({
-    tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 16, tds: 500,
-    Q: 15, tR: 12, abstand: 100,
-    zielLeistung: 5000, tVL: 90, tRL: 55,
+  // Cookie consent: 'accepted' | 'declined' | null (= not yet decided)
+  const [cookieConsent, setCookieConsent] = useState(() => {
+    try { return localStorage.getItem(COOKIE_KEY) || null; } catch(e) { return null; }
+  });
+
+  const [showImpressum, setShowImpressum] = useState(false);
+
+  const handleAccept = () => {
+    try { localStorage.setItem(COOKIE_KEY, 'accepted'); } catch(e) {}
+    setCookieConsent('accepted');
+  };
+  const handleDecline = () => {
+    try {
+      localStorage.setItem(COOKIE_KEY, 'declined');
+      localStorage.removeItem(STORAGE_KEY);
+    } catch(e) {}
+    setCookieConsent('declined');
+  };
+
+  const [inputs, setInputs] = useState(() => {
+    try {
+      const consent = localStorage.getItem(COOKIE_KEY);
+      if (consent === 'accepted') {
+        const saved = loadSavedInputs();
+        if (saved) return saved;
+      }
+    } catch(e) {}
+    return DEFAULT_INPUTS;
   });
 
   const outputs = useMemo(() => calculateSystem(inputs), [inputs]);
@@ -1469,7 +1548,13 @@ function App() {
   const setInput = useCallback((key, val) => {
     setInputs(prev => {
       if (prev[key] === val) return prev;
-      return { ...prev, [key]: val };
+      const next = { ...prev, [key]: val };
+      try {
+        if (localStorage.getItem(COOKIE_KEY) === 'accepted') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        }
+      } catch(e) {}
+      return next;
     });
   }, []);
 
@@ -1520,7 +1605,15 @@ function App() {
           <FeedbackPanel addLog={addLog} inputs={inputs} />
         </div>
       </div>
+      {cookieConsent === null && (
+        <CookieBanner
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+          onShowImpressum={() => setShowImpressum(true)}
+        />
+      )}
       <StatusBar outputs={outputs} inputs={inputs} />
+      {showImpressum && <ImpressumModal onClose={() => setShowImpressum(false)}/>}
     </>
   );
 }
