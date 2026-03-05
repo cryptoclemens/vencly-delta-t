@@ -46,8 +46,7 @@
     }
     .tb-left  { display: flex; align-items: center; gap: 14px; }
     .tb-right { display: flex; align-items: center; gap: 8px; }
-    .vencly-logo { display: flex; align-items: center; text-decoration: none; }
-    .vencly-logo svg { height: 24px; }
+    .vencly-logo { display: flex; align-items: center; text-decoration: none; overflow: visible; }
     .tb-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.2); }
     .tb-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
     .tb-subtitle { font-size: 11px; color: rgba(255,255,255,0.55); font-weight: 400; }
@@ -168,27 +167,26 @@
     .param-label sub { font-size: 9px; }
     .param-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     /* ── Info Popup ── */
-    .info-wrap { position: relative; flex-shrink: 0; }
     .info-btn {
-      width: 16px; height: 16px; border-radius: 50%;
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
       background: var(--navy-light); border: 1px solid var(--border);
       color: var(--navy); font-size: 9px; font-weight: 800;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       line-height: 1; padding: 0; transition: background 0.15s;
     }
     .info-btn:hover { background: #c8d8f0; }
+    /* popup uses fixed positioning via inline style set by JS → never clipped */
     .info-popup {
-      position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
-      width: 270px; max-height: 200px; overflow-y: auto;
-      background: var(--navy); border: 1px solid rgba(255,255,255,0.15);
+      position: fixed; z-index: 9999;
+      width: 270px; max-height: 210px; overflow-y: auto;
+      background: var(--navy); border: 1px solid rgba(255,255,255,0.18);
       border-radius: 10px; padding: 11px 13px;
       font-size: 11px; color: rgba(255,255,255,0.88); line-height: 1.55;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.55);
     }
-    .info-popup strong { color: #fff; display: block; margin-top: 6px; margin-bottom: 1px; }
+    .info-popup strong { color: #fff; display: block; margin-top: 7px; margin-bottom: 1px; }
     .info-popup strong:first-child { margin-top: 0; }
     .info-popup em { color: rgba(255,255,255,0.55); font-style: normal; }
-    /* scrollbar in popup */
     .info-popup::-webkit-scrollbar { width: 4px; }
     .info-popup::-webkit-scrollbar-track { background: transparent; }
     .info-popup::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
@@ -577,18 +575,40 @@ const fmtSci = (v) => {
 ═══════════════════════════════════════════════ */
 function InfoPopup({ content }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [style, setStyle] = useState({});
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+
   useEffect(() => {
     if (!open) return;
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = e => {
+      if (popRef.current && !popRef.current.contains(e.target) &&
+          btnRef.current && !btnRef.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  const toggle = e => {
+    e.stopPropagation();
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const popW = 270;
+      // position popup below button, align right edge; flip left if too close to right edge
+      const leftPos = r.right - popW < 8 ? r.left : r.right - popW;
+      setStyle({ top: r.bottom + 6, left: Math.max(8, leftPos) });
+    }
+    setOpen(o => !o);
+  };
+
   return (
-    <div ref={ref} className="info-wrap">
-      <button className="info-btn" onClick={e => { e.stopPropagation(); setOpen(o => !o); }} title="Info">i</button>
-      {open && <div className="info-popup">{content}</div>}
-    </div>
+    <>
+      <button ref={btnRef} className="info-btn" onClick={toggle} title="Info">i</button>
+      {open && ReactDOM.createPortal(
+        <div ref={popRef} className="info-popup" style={style}>{content}</div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -1225,7 +1245,7 @@ function SecondaryColumn({ inputs, outputs }) {
 function VenclyLogo() {
   return (
     <a href="https://www.vencly.com" target="_blank" rel="noopener noreferrer" className="vencly-logo" title="Vencly">
-      <img src="favicon.png" alt="Vencly" style={{height:'36px', width:'36px', borderRadius:'8px'}} />
+      <img src="favicon.png" alt="Vencly" style={{height:'32px', width:'32px', borderRadius:'7px', display:'block'}} />
     </a>
   );
 }
