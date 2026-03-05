@@ -7,6 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     /* ═══════════════════════════════════════════════
        ROOT & RESET
@@ -435,17 +436,9 @@ const SUPABASE_TABLE    = 'feedback';
 const PROJECT_NAME      = 'DeltaT';
 
 async function saveFeedback(payload) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Prefer':        'return=minimal',
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { error } = await _sb.from(SUPABASE_TABLE).insert(payload);
+  if (error) throw new Error(error.message || 'Supabase insert fehlgeschlagen');
 }
 
 /* ═══════════════════════════════════════════════

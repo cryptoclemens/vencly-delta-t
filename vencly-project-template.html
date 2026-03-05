@@ -364,6 +364,7 @@
 </head>
 <body>
 <script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <!-- ═══════════════════════════════════════════════
      TOP BAR
@@ -626,17 +627,9 @@ const SUPABASE_TABLE    = 'feedback';
 const PROJECT_NAME      = 'Projektname';              // ← hier Projektnamen anpassen
 
 async function saveFeedback(payload) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Prefer':        'return=minimal',
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { error } = await _sb.from(SUPABASE_TABLE).insert(payload);
+  if (error) throw new Error(error.message || 'Supabase insert fehlgeschlagen');
 }
 
 /* Startup-Sequenz */
