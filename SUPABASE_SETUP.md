@@ -56,22 +56,26 @@ CREATE POLICY "Auth darf lesen"
 1. Im Dashboard: **Project Settings** → **API**
 2. Notiere dir:
    - **Project URL** → sieht aus wie `https://abcdefgh.supabase.co`
-   - **anon public** Key → langer JWT-String unter „Project API keys"
+   - **Publishable key** → unter „API Keys" (neues Format: `sb_publishable_...`)
+     *(In älteren Supabase-Projekten heißt dieser Key noch „anon public" und sieht
+     wie ein langer JWT-String aus – `eyJ...`. Beide Formate funktionieren gleich.)*
 
-> ⚠ Den `anon`-Key darf man im Frontend verwenden – er ist nur für
-> die erlaubten Operationen (INSERT) nutzbar, da RLS aktiv ist.
-> Den `service_role`-Key **niemals** im Frontend einsetzen.
+> ⚠ Den **Publishable key** (früher: `anon`-Key) darf man im Frontend verwenden –
+> er ist durch RLS auf die erlaubten Operationen (INSERT) beschränkt.
+> Den `service_role`-Key / **Secret key** **niemals** im Frontend einsetzen.
 
 ---
 
 ## Schritt 4 – Keys in die App eintragen
 
-Öffne **`delta-t.html`** (und/oder **`vencly-project-template.html`**) und ersetze
-oben im `<script>`-Block die zwei Platzhalter:
+Trage deine Credentials in **`config.js`** ein (die Datei liegt im Projekt-Ordner,
+sie ist gitignored und wird nie committed):
 
 ```js
-const SUPABASE_URL      = 'https://abcdefgh.supabase.co';   // ← deine URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5c...';  // ← dein anon key
+window.VENCLY_CONFIG = {
+  supabaseUrl:     'https://abcdefgh.supabase.co',    // ← deine Project URL
+  supabaseAnonKey: 'sb_publishable_...',               // ← dein Publishable key
+};
 ```
 
 Fertig. Ab sofort wird jedes abgesendete Feedback in Supabase gespeichert.

@@ -34,7 +34,7 @@ Credentials kommen aus `config.js` (gitignored, nie committen):
 ```js
 window.VENCLY_CONFIG = {
   supabaseUrl:     'https://xxxx.supabase.co',
-  supabaseAnonKey: 'eyJ...',
+  supabaseAnonKey: 'sb_publishable_...',   // Publishable key (früher: anon key)
 };
 ```
 
@@ -46,7 +46,7 @@ Vollständige Anleitung: → [SUPABASE_SETUP.md](SUPABASE_SETUP.md)
 # GitHub Secrets setzen:
 # Settings → Secrets and variables → Actions
 #   SUPABASE_URL      = https://xxxx.supabase.co
-#   SUPABASE_ANON_KEY = eyJ...
+#   SUPABASE_ANON_KEY = sb_publishable_...   (dein Publishable key)
 
 # Dann pushen – GitHub Actions übernimmt den Rest
 git push origin main
