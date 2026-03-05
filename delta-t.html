@@ -327,6 +327,45 @@
     .ampel-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.9); display: block; }
     .ampel-detail { font-size: 9px; color: rgba(255,255,255,0.5); display: block; white-space: nowrap; }
     .status-bar-title { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; margin-right: 4px; }
+    .status-bar-spacer { flex: 1; }
+    .footer-btn {
+      font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; padding: 3px 10px; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .footer-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(10,26,50,0.55); backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: #fff; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+      width: min(560px, 92vw); max-height: 80vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 20px 12px; border-bottom: 1px solid #e8edf5;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 50%; border: none; background: #f0f4fa;
+      cursor: pointer; font-size: 16px; color: #5a7398; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: #e0e8f5; }
+    .modal-body { padding: 18px 20px; overflow-y: auto; font-size: 13px; line-height: 1.6; color: #1e2f44; }
+    .modal-body h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--navy); margin: 14px 0 6px; }
+    .modal-body h3:first-child { margin-top: 0; }
+    .modal-body p { margin-bottom: 6px; }
+    .modal-body a { color: var(--primary); text-decoration: none; }
+    .modal-body a:hover { text-decoration: underline; }
+    .src-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f4f9; align-items: baseline; }
+    .src-row:last-child { border-bottom: none; }
+    .src-tag { font-size: 10px; font-weight: 700; background: var(--navy-light); color: var(--navy); border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+    .src-text { font-size: 12px; color: #2a3e56; }
 
     /* ═══════════════════════════════════════════════
        LEFT PANEL – Feature Tracker + Boot Log
@@ -742,6 +781,8 @@ function BarChart({ qthSingle, qthTotal, zielLeistung }) {
    STATUS BAR
 ═══════════════════════════════════════════════ */
 function StatusBar({ outputs, inputs }) {
+  const [showQuellen, setShowQuellen] = useState(false);
+  const [showImpressum, setShowImpressum] = useState(false);
   const items = [
     { label: 'Hydraulik', detail: `k_f = ${inputs.kf.toExponential(1)} m/s`, status: outputs.sHydraulik },
     { label: 'Thermik',   detail: `ΔT = ${fmt(outputs.deltaT,1)} K`, status: outputs.sThermik },
@@ -750,21 +791,115 @@ function StatusBar({ outputs, inputs }) {
     { label: 'Materialklasse', detail: inputs.tds < 1000 ? 'Edelstahl' : inputs.tds < 10000 ? 'Duplex' : 'Titan/Hastelloy', status: outputs.sMaterial },
   ];
   return (
-    <div id="status-bar">
-      <span className="status-bar-title">Status</span>
-      {items.map((it, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <div className="ampel-sep"/>}
-          <div className="ampel-item">
-            <div className={`ampel-dot ${it.status}`}/>
-            <div className="ampel-text">
-              <span className="ampel-label">{it.label}</span>
-              <span className="ampel-detail">{it.detail}</span>
+    <>
+      <div id="status-bar">
+        <span className="status-bar-title">Status</span>
+        {items.map((it, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <div className="ampel-sep"/>}
+            <div className="ampel-item">
+              <div className={`ampel-dot ${it.status}`}/>
+              <div className="ampel-text">
+                <span className="ampel-label">{it.label}</span>
+                <span className="ampel-detail">{it.detail}</span>
+              </div>
             </div>
-          </div>
-        </React.Fragment>
-      ))}
-    </div>
+          </React.Fragment>
+        ))}
+        <div className="status-bar-spacer"/>
+        <button className="footer-btn" onClick={() => setShowQuellen(true)}>📚 Quellen</button>
+        <div style={{width:'6px'}}/>
+        <button className="footer-btn" onClick={() => setShowImpressum(true)}>📄 Impressum</button>
+      </div>
+      {showQuellen   && <QuellenModal   onClose={() => setShowQuellen(false)}/>}
+      {showImpressum && <ImpressumModal onClose={() => setShowImpressum(false)}/>}
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   QUELLEN MODAL
+═══════════════════════════════════════════════ */
+function QuellenModal({ onClose }) {
+  const sources = [
+    { tag: 'VDI 4640 Bl. 1–4', text: 'VDI-Richtlinie 4640 – Thermische Nutzung des Untergrundes. Blatt 1: Grundlagen, Genehmigungen, Umweltaspekte; Blatt 2: Erdgekoppelte WP; Blatt 4: Direkte Nutzung. VDI, Düsseldorf, 2019/2022.' },
+    { tag: 'EN 14511', text: 'DIN EN 14511 – Luftkonditionierer, Flüssigkeitskühlsätze und Wärmepumpen für die Raumbeheizung und -kühlung sowie Prozesskühlung. CEN, 2018.' },
+    { tag: 'Arpagaus et al. 2018', text: 'Arpagaus, C. et al.: High temperature heat pumps: Market overview, state of the art, research status, refrigerants, and application potentials. Energy, 152, 985–1010, 2018. doi:10.1016/j.energy.2018.03.166' },
+    { tag: 'Zühlsdorf et al. 2019', text: 'Zühlsdorf, B. et al.: Analysis of possibilities to utilize high-temperature heat pumps for heat supply in industrial processes. Journal of Renewable and Sustainable Energy, 11(3), 035002, 2019. doi:10.1063/1.5051244' },
+    { tag: 'Drost 1978', text: 'Drost, W.: Methoden der Grundwasserhydrologie. Akademie-Verlag, Berlin, 1978. (Durchbruchszeit-Formel: t_break = π·n·b·d² / (4·Q))' },
+    { tag: 'DVGW W 101', text: 'DVGW-Arbeitsblatt W 101 – Richtlinien für Trinkwasserschutzzonen. Teil I: Schutzgebiete für Grundwasser. DVGW, Bonn, 1995.' },
+    { tag: 'Kühn 2012', text: 'Kühn, M. (Hrsg.): Dynamische Speicherung von CO₂ in geothermischen Reservoiren. Springer, 2012. (Transmissivitäts-Richtwerte T > 10⁻³ m²/s für Geothermieprojekte)' },
+    { tag: 'Sanner et al. 2003', text: 'Sanner, B. et al.: Current status of ground source heat pumps and underground thermal energy storage in Europe. Geothermics, 32(4–6), 579–588, 2003. doi:10.1016/S0375-6505(03)00060-9' },
+    { tag: 'Carnot / COP', text: 'Theoretischer COP nach Carnot: COP_Carnot = T_VL / (T_VL − T_GW) [K]. Realer COP bei ~50 % des Carnot-COP gemäß IEA Heat Pump Programme Annex 35 (2011) und Arpagaus et al. (2018).' },
+    { tag: 'VDI 2045', text: 'VDI 2045 – Korrosion durch Wasser; Einfluss der Wasserchemie. (TDS-Richtwerte für Werkstoffauswahl: < 1.000 mg/l Edelstahl 1.4571; 1.000–10.000 mg/l Duplex 1.4462; > 10.000 mg/l Titan/Hastelloy)' },
+    { tag: 'Wärmeübertrager (LMTD)', text: 'VDI Wärmeatlas, 12. Aufl., Springer, 2019. Logarithmische Temperaturdifferenz: LMTD = (ΔT₁ − ΔT₂) / ln(ΔT₁/ΔT₂). U-Wert Plattenwärmetauscher: 4.000–6.000 W/(m²·K).' },
+  ];
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">📚 Berechnungsquellen</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'12px'}}>
+            Alle Berechnungen und Empfehlungslogiken basieren auf den folgenden Normen und Fachliteraturquellen.
+          </p>
+          {sources.map((s, i) => (
+            <div key={i} className="src-row">
+              <span className="src-tag">{s.tag}</span>
+              <span className="src-text">{s.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   IMPRESSUM MODAL
+═══════════════════════════════════════════════ */
+function ImpressumModal({ onClose }) {
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">📄 Impressum</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          {/* ── IMPRESSUM INHALT ── */}
+          <h3>Angaben gemäß § 5 TMG</h3>
+          <p><strong>Vencly GmbH</strong><br/>
+          {/* ADRESSE HIER EINFÜGEN */}
+          [Straße und Hausnummer]<br/>
+          [PLZ Ort]<br/>
+          Deutschland</p>
+
+          <h3>Kontakt</h3>
+          <p>
+          E-Mail: <a href="mailto:hello@vencly.com">hello@vencly.com</a><br/>
+          Web: <a href="https://vencly.com" target="_blank" rel="noopener">vencly.com</a>
+          </p>
+
+          <h3>Registereintrag</h3>
+          <p>
+          {/* REGISTERGERICHT / HRB HIER EINFÜGEN */}
+          Registergericht: [Amtsgericht …]<br/>
+          Registernummer: [HRB …]
+          </p>
+
+          <h3>Vertreten durch</h3>
+          <p>{/* GESCHÄFTSFÜHRER HIER EINFÜGEN */}[Geschäftsführer]</p>
+
+          <h3>Haftungshinweis</h3>
+          <p>Die Berechnungen dieses Tools dienen ausschließlich zur Erstorientierung und ersetzen keine fachliche Planung oder Genehmigungsberatung. Für die Richtigkeit, Vollständigkeit und Aktualität der Ergebnisse wird keine Gewähr übernommen.</p>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
