@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>DeltaT – Geothermie Auslegungsrechner</title>
+  <link rel="icon" type="image/png" href="favicon.png"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -449,11 +450,11 @@ function calculateSystem(inp) {
 
   const transmissiv = kf * maechtig;
   const deltaT = tGW - tR;
-  const qThPerDoublet = Math.max(0.01, Q * deltaT * 4.18 / 1000);
+  const qThPerDoublet = Math.max(0.01, Q * deltaT * 4.18); // kW: Q[l/s=kg/s] × c_p[kJ/kg/K] × ΔT[K]
   const anzahlDoubletten = deltaT > 0 ? Math.max(1, Math.ceil(zielLeistung / qThPerDoublet)) : 999;
   const qThGesamt = anzahlDoubletten * qThPerDoublet;
   const gesamtFoerderrate = anzahlDoubletten * Q;
-  const tauchpumpenLeistung = Q * 0.02 * tiefe / 100;
+  const tauchpumpenLeistung = (Q / 1000) * 1000 * 9.81 * tiefe / (0.6 * 1000); // kW: Q[m³/s]×ρg×H / η
 
   // Breakthrough time [years]  n=0.25, S=maechtig
   const n = 0.25;
@@ -1164,19 +1165,7 @@ function SecondaryColumn({ inputs, outputs }) {
 function VenclyLogo() {
   return (
     <a href="https://www.vencly.com" target="_blank" rel="noopener noreferrer" className="vencly-logo" title="Vencly">
-      <svg viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="vg2" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3B82F6"/>
-            <stop offset="40%" stopColor="#8B5CF6"/>
-            <stop offset="70%" stopColor="#EC4899"/>
-            <stop offset="100%" stopColor="#F97316"/>
-          </linearGradient>
-        </defs>
-        <polygon points="10,8 36,8 55,50 74,8 100,8 55,65" fill="url(#vg2)"/>
-        <text x="112" y="48" fontFamily="'Segoe UI',system-ui,sans-serif"
-          fontSize="34" fontWeight="700" fill="#ffffff" letterSpacing="-0.5">vencly</text>
-      </svg>
+      <img src="favicon.png" alt="Vencly" style={{height:'36px', width:'36px', borderRadius:'8px'}} />
     </a>
   );
 }
