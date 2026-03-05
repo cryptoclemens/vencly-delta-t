@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vencly – Projektname</title>
+  <style>
+    /* ═══════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand-blue:   #3B82F6;
+      --brand-purple: #8B5CF6;
+      --brand-pink:   #EC4899;
+      --brand-orange: #F97316;
+      --navy:         #0D2B55;
+      --navy-dark:    #091d3a;
+      --navy-mid:     #1a3f6f;
+      --navy-light:   #e8f0fa;
+      --accent:       #0D2B55;
+      --bg:           #ffffff;
+      --surface:      #f4f7fc;
+      --surface2:     #eaf0f9;
+      --border:       #d0dced;
+      --text:         #0d1b2e;
+      --text-muted:   #5a7398;
+      --success:      #16a34a;
+      --warning:      #d97706;
+      --danger:       #dc2626;
+      --info:         #0369a1;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════
+       HEADER / TOPBAR
+    ═══════════════════════════════════════════════ */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+      background: rgba(13,43,85,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    #topbar-left { display: flex; align-items: center; gap: 16px; }
+    #topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    /* Vencly Logo SVG inline */
+    .vencly-logo-link {
+      display: flex; align-items: center; text-decoration: none;
+      gap: 0px;
+    }
+    .vencly-logo-link svg { height: 28px; width: auto; }
+
+    /* Project name + version badge */
+    .project-name {
+      font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9);
+      border-left: 1px solid rgba(255,255,255,0.2);
+      padding-left: 16px;
+      letter-spacing: 0.02em;
+    }
+    #version-badge {
+      font-size: 11px; font-weight: 500;
+      color: #93c5fd;
+      background: rgba(147,197,253,0.15);
+      border: 1px solid rgba(147,197,253,0.35);
+      border-radius: 999px;
+      padding: 2px 10px;
+      letter-spacing: 0.04em;
+    }
+
+    /* Top-bar icon buttons */
+    .topbar-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.75);
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .topbar-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .topbar-btn svg { width: 14px; height: 14px; }
+
+    /* ═══════════════════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════════════════ */
+    #layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+    }
+    #main-content {
+      grid-column: 2;
+      grid-row: 2;
+      padding: 32px;
+      overflow-y: auto;
+    }
+    #sidebar-left {
+      grid-column: 1;
+      grid-row: 2;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 20px 16px;
+      background: var(--surface);
+    }
+    #sidebar-right {
+      grid-column: 3;
+      grid-row: 2;
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+    }
+    #feedback-panel .panel-header {
+      background: var(--navy);
+    }
+    #feedback-panel .panel-header h3 {
+      color: rgba(255,255,255,0.9);
+    }
+    #feedback-panel .panel-header h3 svg {
+      stroke: rgba(255,255,255,0.7);
+    }
+    #feedback-panel .panel-toggle {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* ═══════════════════════════════════════════════
+       PANELS (shared card style)
+    ═══════════════════════════════════════════════ */
+    .panel {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(13,43,85,0.06);
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--navy-light);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .panel-header h3 {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--navy);
+    }
+    .panel-header h3 svg { width: 14px; height: 14px; }
+    .panel-toggle { font-size: 16px; color: var(--navy-mid); transition: transform .2s; }
+    .panel.collapsed .panel-toggle { transform: rotate(-90deg); }
+    .panel.collapsed .panel-body { display: none; }
+    .panel-body { padding: 14px 16px; }
+
+    /* ═══════════════════════════════════════════════
+       FEATURE TRACKER
+    ═══════════════════════════════════════════════ */
+    .feature-list { list-style: none; }
+    .feature-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+    }
+    .feature-item:last-child { border-bottom: none; }
+    .feature-status {
+      flex-shrink: 0;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+      margin-top: 1px;
+    }
+    .status-done    { background: rgba(34,197,94,0.2);  color: var(--success); }
+    .status-wip     { background: rgba(245,158,11,0.2); color: var(--warning); }
+    .status-planned { background: rgba(99,102,241,0.2); color: #818cf8; }
+    .status-blocked { background: rgba(239,68,68,0.2);  color: var(--danger); }
+    .feature-label { flex: 1; line-height: 1.4; color: var(--text); }
+    .feature-tag {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+    }
+    .tag-ui    { background: rgba(59,130,246,0.15); color: var(--brand-blue); }
+    .tag-api   { background: rgba(236,72,153,0.15); color: var(--brand-pink); }
+    .tag-logic { background: rgba(139,92,246,0.15); color: var(--brand-purple); }
+    .tag-data  { background: rgba(16,185,129,0.15); color: #34d399; }
+
+    .tracker-legend {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 10px 0 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      margin-top: 8px;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+
+    /* Progress bar */
+    .tracker-progress { margin-bottom: 12px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .progress-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--navy), #2563eb);
+      transition: width 0.5s ease;
+    }
+
+    /* Add feature */
+    .add-feature-row {
+      display: flex; gap: 6px; margin-top: 10px;
+    }
+    .add-feature-row input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12px; padding: 5px 10px;
+      outline: none;
+    }
+    .add-feature-row input:focus { border-color: var(--navy); }
+    .add-feature-row button {
+      background: var(--navy); border: none; border-radius: 6px;
+      color: #fff; font-size: 18px; line-height: 1; padding: 4px 10px;
+      cursor: pointer;
+    }
+
+    /* ═══════════════════════════════════════════════
+       BOOT LOG
+    ═══════════════════════════════════════════════ */
+    #boot-log-box {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 11.5px;
+      line-height: 1.7;
+      background: #f0f4f9;
+      border-radius: 0 0 10px 10px;
+      padding: 12px 14px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    #boot-log-box::-webkit-scrollbar { width: 4px; }
+    #boot-log-box::-webkit-scrollbar-track { background: transparent; }
+    #boot-log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .log-line { display: flex; gap: 10px; }
+    .log-ts   { color: #94a3b8; flex-shrink: 0; }
+    .log-lvl  { flex-shrink: 0; font-weight: 700; min-width: 42px; }
+    .log-msg  { color: #475569; }
+    .lvl-ok   { color: var(--success); }
+    .lvl-info { color: var(--info); }
+    .lvl-warn { color: var(--warning); }
+    .lvl-err  { color: var(--danger); }
+    .log-clear-btn {
+      font-size: 10px; color: var(--text-muted); background: none;
+      border: 1px solid var(--border); border-radius: 5px;
+      padding: 2px 8px; cursor: pointer; transition: all .15s;
+    }
+    .log-clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ═══════════════════════════════════════════════
+       FEEDBACK BOX
+    ═══════════════════════════════════════════════ */
+    #feedback-panel {
+      flex: 1; display: flex; flex-direction: column;
+      border-top: 1px solid var(--border);
+    }
+    #feedback-panel .panel-header { border-radius: 0; }
+    #feedback-body {
+      padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      flex: 1;
+    }
+    .feedback-type-row {
+      display: flex; gap: 6px;
+    }
+    .fb-type-btn {
+      flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 600;
+      border-radius: 7px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); cursor: pointer;
+      transition: all .15s;
+    }
+    .fb-type-btn.active { border-color: var(--navy); color: var(--navy); background: var(--navy-light); }
+    #feedback-text {
+      width: 100%; min-height: 80px; resize: vertical;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px;
+      padding: 10px 12px; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    #feedback-text:focus { border-color: var(--navy); }
+    .feedback-meta { display: flex; gap: 8px; }
+    .feedback-meta input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: 12px;
+      padding: 6px 10px; outline: none; font-family: inherit;
+    }
+    .feedback-meta input:focus { border-color: var(--navy); }
+    #feedback-submit {
+      width: 100%; padding: 9px;
+      background: var(--navy);
+      border: none; border-radius: 8px; color: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    #feedback-submit:hover { background: var(--navy-mid); }
+    #feedback-success {
+      display: none; text-align: center; padding: 12px;
+      font-size: 13px; color: var(--success);
+    }
+
+    /* ═══════════════════════════════════════════════
+       MAIN CONTENT AREA
+    ═══════════════════════════════════════════════ */
+    #main-content h1 {
+      font-size: 28px; font-weight: 700; margin-bottom: 8px;
+      color: var(--navy);
+    }
+    #main-content .subtitle {
+      color: var(--text-muted); font-size: 15px; margin-bottom: 28px;
+    }
+    .content-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 6px rgba(13,43,85,0.06);
+    }
+    .content-card h2 {
+      font-size: 16px; font-weight: 600; margin-bottom: 12px;
+      color: var(--navy);
+    }
+    .placeholder-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .placeholder-box {
+      height: 80px; border: 2px dashed var(--border); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 12px;
+      background: var(--surface);
+    }
+
+    /* ═══════════════════════════════════════════════
+       SCROLLBAR global
+    ═══════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  </style>
+</head>
+<body>
+<script src="config.js"></script>
+
+<!-- ═══════════════════════════════════════════════
+     TOP BAR
+═══════════════════════════════════════════════ -->
+<header id="topbar">
+  <div id="topbar-left">
+
+    <!-- VENCLY LOGO (inline SVG – kein externer Bildpfad nötig) -->
+    <a href="https://www.vencly.com" target="_blank" rel="noopener noreferrer" class="vencly-logo-link" title="Vencly">
+      <svg viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="vg" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#3B82F6"/>
+            <stop offset="40%"  stop-color="#8B5CF6"/>
+            <stop offset="70%"  stop-color="#EC4899"/>
+            <stop offset="100%" stop-color="#F97316"/>
+          </linearGradient>
+        </defs>
+        <!-- V shape -->
+        <polygon points="10,8 36,8 55,50 74,8 100,8 55,65" fill="url(#vg)"/>
+        <!-- "vencly" text -->
+        <text x="112" y="48" font-family="'Segoe UI',system-ui,sans-serif"
+              font-size="34" font-weight="700" fill="#ffffff" letter-spacing="-0.5">vencly</text>
+      </svg>
+    </a>
+
+    <!-- Project Name -->
+    <span class="project-name">Projektname</span>
+    <span id="version-badge">v–</span>
+  </div>
+
+  <div id="topbar-right">
+    <button class="topbar-btn" onclick="addBootLog('info','Seite manuell neu geladen')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Reload
+    </button>
+    <button class="topbar-btn" onclick="toggleBootLog()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Boot Log
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════
+     LAYOUT GRID
+═══════════════════════════════════════════════ -->
+<div id="layout">
+
+  <!-- ── LEFT SIDEBAR: Feature Tracker ── -->
+  <aside id="sidebar-left">
+
+    <div class="panel" id="feature-panel">
+      <div class="panel-header" onclick="togglePanel('feature-panel')">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          Feature Tracker
+        </h3>
+        <span class="panel-toggle">▾</span>
+      </div>
+      <div class="panel-body">
+        <div class="tracker-progress">
+          <div class="progress-label">
+            <span>Fortschritt</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        </div>
+
+        <ul class="feature-list" id="feature-list">
+          <!-- Beispiel-Features – hier anpassen -->
+          <li class="feature-item">
+            <span class="feature-status status-done">✓</span>
+            <span class="feature-label">Projektstruktur & Setup</span>
+            <span class="feature-tag tag-logic">Logic</span>
+          </li>
+          <li class="feature-item">
+            <span class="feature-status status-done">✓</span>
+            <span class="feature-label">Vencly Branding &amp; Header</span>
+            <span class="feature-tag tag-ui">UI</span>
+          </li>
+          <li class="feature-item">
+            <span class="feature-status status-wip">⋯</span>
+            <span class="feature-label">Kern-Feature 1</span>
+            <span class="feature-tag tag-api">API</span>
+          </li>
+          <li class="feature-item">
+            <span class="feature-status status-planned">○</span>
+            <span class="feature-label">Kern-Feature 2</span>
+            <span class="feature-tag tag-data">Data</span>
+          </li>
+          <li class="feature-item">
+            <span class="feature-status status-planned">○</span>
+            <span class="feature-label">Export &amp; Reporting</span>
+            <span class="feature-tag tag-ui">UI</span>
+          </li>
+          <li class="feature-item">
+            <span class="feature-status status-blocked">✕</span>
+            <span class="feature-label">API-Integration (ausstehend)</span>
+            <span class="feature-tag tag-api">API</span>
+          </li>
+        </ul>
+
+        <!-- Quick-add -->
+        <div class="add-feature-row">
+          <input id="new-feature-input" type="text" placeholder="Neues Feature…" onkeydown="if(event.key==='Enter')addFeature()"/>
+          <button onclick="addFeature()">+</button>
+        </div>
+
+        <div class="tracker-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Fertig</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>In Arbeit</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div>Geplant</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Blockiert</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boot Log (auch in Sidebar verfügbar) -->
+    <div class="panel" id="bootlog-panel">
+      <div class="panel-header" onclick="togglePanel('bootlog-panel')">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+          Boot Log
+        </h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="log-clear-btn" onclick="event.stopPropagation();clearLog()">Löschen</button>
+          <span class="panel-toggle">▾</span>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div id="boot-log-box"></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main id="main-content">
+    <h1>Projektname</h1>
+    <p class="subtitle">Kurze Beschreibung des Projekts. Was macht dieses Tool?</p>
+
+    <!-- ✏️  Hier kommt der eigentliche Projektinhalt rein -->
+    <div class="content-card">
+      <h2>Haupt-Feature</h2>
+      <div class="placeholder-grid">
+        <div class="placeholder-box">Komponente A</div>
+        <div class="placeholder-box">Komponente B</div>
+        <div class="placeholder-box">Komponente C</div>
+        <div class="placeholder-box">Komponente D</div>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <h2>Weitere Inhalte</h2>
+      <p style="color:var(--text-muted);font-size:14px;">Platzhalter – hier den Projektinhalt einfügen.</p>
+    </div>
+  </main>
+
+  <!-- ── RIGHT SIDEBAR: Feedback ── -->
+  <aside id="sidebar-right">
+    <div id="feedback-panel">
+      <div class="panel-header">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+          Feedback
+        </h3>
+      </div>
+      <div id="feedback-body">
+        <div class="feedback-type-row">
+          <button class="fb-type-btn active" onclick="setFbType(this,'💡 Idee')">💡 Idee</button>
+          <button class="fb-type-btn" onclick="setFbType(this,'🐛 Bug')">🐛 Bug</button>
+          <button class="fb-type-btn" onclick="setFbType(this,'🙏 Wunsch')">🙏 Wunsch</button>
+        </div>
+        <textarea id="feedback-text" placeholder="Dein Feedback…"></textarea>
+        <div class="feedback-meta">
+          <input type="text" id="feedback-name" placeholder="Name (optional)"/>
+        </div>
+        <button id="feedback-submit" onclick="submitFeedback()">Feedback senden</button>
+        <div id="feedback-success">✅ Vielen Dank für dein Feedback!</div>
+      </div>
+    </div>
+  </aside>
+
+</div><!-- /#layout -->
+
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════ -->
+<script>
+/* ──────────────────────────────────────────────────
+   VERSION NUMBER GENERATION
+   Format: v{Jahr}.{Woche}.{Build}
+   Build = Minuten seit Mitternacht (eindeutig pro Tag)
+   Kann durch eine eigene Logik ersetzt werden.
+────────────────────────────────────────────────── */
+function generateVersion() {
+  const now = new Date();
+  const year = now.getFullYear();
+  // ISO week number
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  const build = String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+  return `v${year}.W${String(week).padStart(2,'0')}.${build}`;
+}
+document.getElementById('version-badge').textContent = generateVersion();
+
+
+/* ──────────────────────────────────────────────────
+   BOOT LOG
+────────────────────────────────────────────────── */
+const bootLogBox = document.getElementById('boot-log-box');
+let logCount = 0;
+
+function addBootLog(level, message) {
+  logCount++;
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  const levelMap = {
+    ok:   ['OK  ', 'lvl-ok'],
+    info: ['INFO', 'lvl-info'],
+    warn: ['WARN', 'lvl-warn'],
+    err:  ['ERR ', 'lvl-err'],
+  };
+  const [lbl, cls] = levelMap[level] || ['LOG ', 'lvl-info'];
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${ts}</span><span class="log-lvl ${cls}">${lbl}</span><span class="log-msg">${message}</span>`;
+  bootLogBox.appendChild(line);
+  bootLogBox.scrollTop = bootLogBox.scrollHeight;
+}
+
+function clearLog() {
+  bootLogBox.innerHTML = '';
+  addBootLog('info', 'Log geleert.');
+}
+
+function toggleBootLog() {
+  const panel = document.getElementById('bootlog-panel');
+  panel.classList.toggle('collapsed');
+}
+
+/* ──────────────────────────────────────────────────
+   SUPABASE CONFIG  (Werte kommen aus config.js)
+────────────────────────────────────────────────── */
+const _cfg = window.VENCLY_CONFIG || {};
+const SUPABASE_URL      = _cfg.supabaseUrl      || 'DEINE_SUPABASE_URL';
+const SUPABASE_ANON_KEY = _cfg.supabaseAnonKey  || 'DEIN_SUPABASE_ANON_KEY';
+const SUPABASE_TABLE    = 'feedback';
+const PROJECT_NAME      = 'Projektname';              // ← hier Projektnamen anpassen
+
+async function saveFeedback(payload) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+}
+
+/* Startup-Sequenz */
+function bootSequence() {
+  const steps = [
+    [0,   'ok',   'Applikation gestartet'],
+    [300, 'info', `Version: ${document.getElementById('version-badge').textContent}`],
+    [600, 'info', 'Konfiguration geladen'],
+    [900, 'ok',   'Feature Tracker initialisiert'],
+    [1200,'ok',   'Feedback-Modul bereit'],
+    [1500,'ok',   'System bereit ✓'],
+  ];
+  steps.forEach(([delay, lvl, msg]) => setTimeout(() => addBootLog(lvl, msg), delay));
+}
+bootSequence();
+
+
+/* ──────────────────────────────────────────────────
+   FEATURE TRACKER
+────────────────────────────────────────────────── */
+function updateProgress() {
+  const items = document.querySelectorAll('.feature-item .feature-status');
+  const total = items.length;
+  const done  = [...items].filter(el => el.classList.contains('status-done')).length;
+  const pct   = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent  = pct + '%';
+}
+updateProgress();
+
+function addFeature() {
+  const input = document.getElementById('new-feature-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const li = document.createElement('li');
+  li.className = 'feature-item';
+  li.innerHTML = `<span class="feature-status status-planned">○</span><span class="feature-label">${val}</span><span class="feature-tag tag-logic">Logic</span>`;
+  document.getElementById('feature-list').appendChild(li);
+  input.value = '';
+  updateProgress();
+  addBootLog('info', `Feature hinzugefügt: "${val}"`);
+}
+
+
+/* ──────────────────────────────────────────────────
+   PANEL TOGGLE
+────────────────────────────────────────────────── */
+function togglePanel(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+
+/* ──────────────────────────────────────────────────
+   FEEDBACK BOX
+────────────────────────────────────────────────── */
+let feedbackType = '💡 Idee';
+
+function setFbType(btn, type) {
+  document.querySelectorAll('.fb-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  feedbackType = type;
+}
+
+async function submitFeedback() {
+  const text = document.getElementById('feedback-text').value.trim();
+  const name = document.getElementById('feedback-name').value.trim();
+  if (!text) { document.getElementById('feedback-text').focus(); return; }
+
+  const btn = document.getElementById('feedback-submit');
+  btn.disabled = true; btn.textContent = '⏳ Wird gesendet…';
+
+  const payload = {
+    project: PROJECT_NAME,
+    type:    feedbackType,
+    message: text,
+    name:    name || null,
+    version: generateVersion(),
+    user_agent: navigator.userAgent.substring(0, 300),
+  };
+
+  try {
+    if (SUPABASE_URL === 'DEINE_SUPABASE_URL') {
+      await new Promise(r => setTimeout(r, 400)); // Dev-Simulation
+      addBootLog('warn', '[Dev] Supabase nicht konfiguriert – Feedback nur lokal');
+    } else {
+      await saveFeedback(payload);
+      addBootLog('ok', `Feedback gespeichert [${feedbackType}] von ${name || 'Anonym'}`);
+    }
+    document.getElementById('feedback-text').value = '';
+    document.getElementById('feedback-name').value = '';
+    const successEl = document.getElementById('feedback-success');
+    successEl.style.display = 'block';
+    setTimeout(() => successEl.style.display = 'none', 4000);
+  } catch (err) {
+    addBootLog('err', `Feedback-Fehler: ${err.message}`);
+    alert(`Fehler beim Senden: ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Feedback senden';
+  }
+}
+</script>
+</body>
+</html>

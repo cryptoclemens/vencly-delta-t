@@ -1,0 +1,16 @@
+# ── Credentials (NIEMALS committen!) ───────────────
+config.js
+
+# ── Betriebssystem ──────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editoren ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Claude Cowork ───────────────────────────────────
+.claude/

@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DeltaT – Geothermie Auslegungsrechner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════════
+       ROOT & RESET
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:        #0D2B55;
+      --navy-mid:    #1a3f6f;
+      --navy-light:  #e8f0fa;
+      --bg:          #EBF4FA;
+      --white:       #ffffff;
+      --border:      #cddaeb;
+      --text:        #0d1b2e;
+      --text-muted:  #5a7398;
+      --hot:         #C0392B;
+      --cold:        #2980B9;
+      --primary:     #2E75B6;
+      --green:       #16a34a;
+      --yellow:      #d97706;
+      --red:         #dc2626;
+      --surface:     #f4f8fd;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* ═══════════════════════════════════════════════
+       TOPBAR
+    ═══════════════════════════════════════════════ */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      height: 52px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      background: var(--navy);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .tb-left  { display: flex; align-items: center; gap: 14px; }
+    .tb-right { display: flex; align-items: center; gap: 8px; }
+    .vencly-logo { display: flex; align-items: center; text-decoration: none; }
+    .vencly-logo svg { height: 24px; }
+    .tb-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.2); }
+    .tb-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
+    .tb-subtitle { font-size: 11px; color: rgba(255,255,255,0.55); font-weight: 400; }
+    #version-badge {
+      font-size: 10px; color: #93c5fd;
+      background: rgba(147,197,253,0.15);
+      border: 1px solid rgba(147,197,253,0.3);
+      border-radius: 99px; padding: 2px 8px;
+    }
+    .tb-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 7px; color: rgba(255,255,255,0.75); font-size: 11px;
+      padding: 4px 10px; cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .tb-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+    .tb-btn.active { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); color: #fff; }
+    .tb-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════════════════ */
+    #app-shell {
+      display: flex; flex-direction: row;
+      height: calc(100vh - 52px - 44px);
+      margin-top: 52px;
+      overflow: hidden;
+    }
+    #left-panel {
+      width: 252px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--white);
+      overflow-y: auto;
+      transition: width .25s, opacity .2s;
+    }
+    #left-panel.hidden { width: 0; opacity: 0; overflow: hidden; }
+    #right-panel {
+      width: 240px; flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      background: var(--white);
+      overflow-y: auto;
+      transition: width .25s, opacity .2s;
+      display: flex; flex-direction: column;
+    }
+    #right-panel.hidden { width: 0; opacity: 0; overflow: hidden; }
+    #calc-area {
+      flex: 1; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── CALCULATOR 3-column grid ── */
+    #calc-grid {
+      flex: 1; display: grid;
+      grid-template-columns: 310px 1fr 300px;
+      gap: 0;
+      overflow: hidden;
+    }
+    .calc-col {
+      overflow-y: auto; overflow-x: hidden;
+      padding: 14px 14px 20px;
+      border-right: 1px solid var(--border);
+    }
+    .calc-col:last-child { border-right: none; }
+    .calc-col::-webkit-scrollbar { width: 4px; }
+    .calc-col::-webkit-scrollbar-track { background: transparent; }
+    .calc-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Column headers ── */
+    .col-header {
+      position: sticky; top: 0; z-index: 5;
+      background: var(--navy);
+      color: #fff; padding: 8px 12px;
+      border-radius: 10px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .col-header svg { width: 15px; height: 15px; stroke: rgba(255,255,255,0.8); flex-shrink: 0; }
+    .col-header-title { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+    .col-header-sub { font-size: 10px; color: rgba(255,255,255,0.55); margin-top: 1px; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION CARDS (inside columns)
+    ═══════════════════════════════════════════════ */
+    .section-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .section-title {
+      background: var(--navy-light);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 12px;
+      font-size: 11px; font-weight: 700;
+      color: var(--navy); letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .section-body { padding: 10px 12px; }
+
+    /* ═══════════════════════════════════════════════
+       INPUT CONTROLS
+    ═══════════════════════════════════════════════ */
+    .param-row {
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid #f0f4f9;
+      cursor: default;
+    }
+    .param-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .param-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .param-label {
+      font-size: 12px; font-weight: 600; color: var(--text);
+      max-width: 170px; line-height: 1.3;
+    }
+    .param-label sub { font-size: 9px; }
+    .param-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .param-number {
+      width: 76px; text-align: right;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text); font-size: 12px; font-weight: 600;
+      padding: 3px 6px; outline: none;
+      -moz-appearance: textfield;
+    }
+    .param-number::-webkit-outer-spin-button,
+    .param-number::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .param-number:focus { border-color: var(--navy); }
+    .param-unit { font-size: 10px; color: var(--text-muted); min-width: 36px; }
+    .param-slider {
+      width: 100%; height: 4px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,50%), #d8e6f3 var(--pct,50%), #d8e6f3 100%);
+      border-radius: 99px; outline: none; border: none;
+    }
+    .param-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--navy);
+      border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      cursor: pointer;
+    }
+    .param-slider::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--navy); border: 2px solid #fff; cursor: pointer;
+    }
+    .computed-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0; margin-bottom: 8px;
+    }
+    .computed-label { font-size: 11px; color: var(--text-muted); }
+    .computed-value { font-size: 12px; font-weight: 700; color: var(--primary); }
+
+    /* ═══════════════════════════════════════════════
+       KPI TILES
+    ═══════════════════════════════════════════════ */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .kpi-tile {
+      border-radius: 9px; padding: 10px 12px;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; }
+    .kpi-value { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 2px; }
+    .kpi-unit  { font-size: 10px; opacity: 0.7; }
+    .kpi-warn  { position: absolute; top: 7px; right: 8px; font-size: 13px; }
+    .kpi-sub   { font-size: 10px; margin-top: 3px; opacity: 0.65; }
+
+    .kpi-blue   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+    .kpi-navy   { background: #e0e9f5; color: var(--navy); border-color: #c7d8ef; }
+    .kpi-hot    { background: #fee2e2; color: var(--hot);  border-color: #fecaca; }
+    .kpi-cold   { background: #dbeafe; color: var(--cold); border-color: #bfdbfe; }
+    .kpi-green  { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .kpi-yellow { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .kpi-red    { background: #fee2e2; color: var(--red); border-color: #fecaca; }
+    .kpi-gray   { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+    /* ═══════════════════════════════════════════════
+       BAR CHART
+    ═══════════════════════════════════════════════ */
+    .bar-chart-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .bar-chart-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .bar-row { margin-bottom: 8px; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+    .bar-label strong { color: var(--text); font-weight: 700; }
+    .bar-track { height: 16px; background: #e8f0f8; border-radius: 4px; overflow: hidden; position: relative; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; min-width: 2px; }
+
+    /* ═══════════════════════════════════════════════
+       SECONDARY COLUMN CARDS
+    ═══════════════════════════════════════════════ */
+    .rec-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 8px; overflow: hidden;
+    }
+    .rec-header {
+      background: var(--navy-light);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 12px;
+      font-size: 11px; font-weight: 700;
+      color: var(--navy); letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .rec-body { padding: 10px 12px; }
+    .rec-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .badge-green  { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-yellow { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-orange { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+    .rec-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border-bottom: 1px solid #f0f4f9; font-size: 12px; }
+    .rec-row:last-child { border-bottom: none; }
+    .rec-key { color: var(--text-muted); }
+    .rec-val { font-weight: 700; color: var(--text); text-align: right; max-width: 60%; }
+    .cop-big { font-size: 32px; font-weight: 800; color: var(--primary); line-height: 1; }
+    .cop-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .risk-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; }
+    .risk-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .wt-formula { font-size: 10px; color: var(--text-muted); font-family: monospace; background: var(--surface); border-radius: 5px; padding: 5px 8px; margin-top: 6px; line-height: 1.6; }
+
+    /* ═══════════════════════════════════════════════
+       STATUS BAR (Ampel)
+    ═══════════════════════════════════════════════ */
+    #status-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 999;
+      height: 44px;
+      background: var(--navy);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 6px;
+      overflow-x: auto;
+    }
+    #status-bar::-webkit-scrollbar { height: 0; }
+    .ampel-sep { width: 1px; height: 28px; background: rgba(255,255,255,0.12); margin: 0 4px; flex-shrink: 0; }
+    .ampel-item {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(255,255,255,0.07); border-radius: 7px;
+      padding: 4px 10px; flex-shrink: 0;
+    }
+    .ampel-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .ampel-dot.green  { background: #22c55e; color: #22c55e; }
+    .ampel-dot.yellow { background: #facc15; color: #facc15; }
+    .ampel-dot.red    { background: #ef4444; color: #ef4444; }
+    .ampel-text { line-height: 1.2; }
+    .ampel-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.9); display: block; }
+    .ampel-detail { font-size: 9px; color: rgba(255,255,255,0.5); display: block; white-space: nowrap; }
+    .status-bar-title { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; margin-right: 4px; }
+
+    /* ═══════════════════════════════════════════════
+       LEFT PANEL – Feature Tracker + Boot Log
+    ═══════════════════════════════════════════════ */
+    .panel-block { border-bottom: 1px solid var(--border); }
+    .panel-block-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--navy-light);
+      cursor: pointer; user-select: none;
+    }
+    .panel-block-title { font-size: 11px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+    .panel-block-header svg { width: 13px; height: 13px; stroke: var(--navy); }
+    .panel-block-toggle { font-size: 12px; color: var(--navy-mid); transition: transform .2s; }
+    .panel-block-toggle.closed { transform: rotate(-90deg); }
+    .panel-block-body { padding: 10px 12px; }
+
+    .feat-progress { margin-bottom: 10px; }
+    .feat-progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .feat-progress-track { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .feat-progress-fill { height: 100%; background: linear-gradient(90deg, var(--navy), var(--primary)); border-radius: 99px; transition: width .4s; }
+
+    .feat-list { list-style: none; }
+    .feat-item {
+      display: flex; align-items: flex-start; gap: 7px;
+      padding: 5px 0; border-bottom: 1px solid #f0f4f9; font-size: 11px;
+    }
+    .feat-item:last-child { border-bottom: none; }
+    .feat-badge { width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .feat-done    { background: #dcfce7; color: #166534; }
+    .feat-wip     { background: #fef3c7; color: #92400e; }
+    .feat-planned { background: #dbeafe; color: #1e40af; }
+    .feat-name { color: var(--text); flex: 1; line-height: 1.35; }
+    .feat-tag { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+    .tag-ui   { background: #dbeafe; color: #1e40af; }
+    .tag-calc { background: #fce7f3; color: #9d174d; }
+    .tag-data { background: #dcfce7; color: #166534; }
+
+    .feat-add { display: flex; gap: 5px; margin-top: 8px; }
+    .feat-add input { flex: 1; font-size: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; color: var(--text); outline: none; }
+    .feat-add input:focus { border-color: var(--navy); }
+    .feat-add button { background: var(--navy); border: none; border-radius: 5px; color: #fff; width: 24px; font-size: 16px; line-height: 1; cursor: pointer; }
+
+    /* Boot log */
+    #boot-log {
+      font-family: 'Cascadia Code','Fira Code', monospace;
+      font-size: 10.5px; line-height: 1.65;
+      background: #f4f8fb; padding: 10px 12px;
+      max-height: 200px; overflow-y: auto;
+      border-top: 1px solid var(--border);
+    }
+    #boot-log::-webkit-scrollbar { width: 3px; }
+    #boot-log::-webkit-scrollbar-thumb { background: var(--border); }
+    .log-line { display: flex; gap: 8px; }
+    .log-ts  { color: #94a3b8; flex-shrink: 0; }
+    .log-lv  { flex-shrink: 0; font-weight: 700; min-width: 36px; }
+    .log-msg { color: #475569; }
+    .lv-ok   { color: #16a34a; }
+    .lv-info { color: #0369a1; }
+    .lv-warn { color: #d97706; }
+    .lv-err  { color: #dc2626; }
+    .log-clear { font-size: 9px; color: var(--text-muted); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; cursor: pointer; float: right; margin-bottom: 4px; }
+    .log-clear:hover { border-color: var(--red); color: var(--red); }
+
+    /* ═══════════════════════════════════════════════
+       RIGHT PANEL – Feedback
+    ═══════════════════════════════════════════════ */
+    .feedback-header {
+      padding: 10px 14px;
+      background: var(--navy);
+      color: rgba(255,255,255,0.9);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .feedback-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 9px; }
+    .fb-type-row { display: flex; gap: 5px; }
+    .fb-type-btn {
+      flex: 1; padding: 5px 3px; font-size: 10px; font-weight: 600;
+      border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); cursor: pointer;
+    }
+    .fb-type-btn.active { border-color: var(--navy); color: var(--navy); background: var(--navy-light); }
+    #fb-text {
+      width: 100%; min-height: 80px; resize: vertical;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: 12px;
+      padding: 8px 10px; outline: none; font-family: inherit;
+    }
+    #fb-text:focus { border-color: var(--navy); }
+    #fb-name {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: 12px;
+      padding: 6px 10px; outline: none; font-family: inherit;
+    }
+    #fb-name:focus { border-color: var(--navy); }
+    #fb-submit {
+      width: 100%; padding: 8px; background: var(--navy);
+      border: none; border-radius: 7px; color: #fff;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: background .2s;
+    }
+    #fb-submit:hover { background: var(--navy-mid); }
+    .fb-ok { text-align: center; font-size: 12px; color: var(--green); padding: 6px; }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      #calc-grid { grid-template-columns: 1fr; overflow-y: auto; }
+      .calc-col { border-right: none; border-bottom: 1px solid var(--border); }
+      #left-panel, #right-panel { display: none; }
+    }
+
+    /* scrollbars global */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="config.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+/* ═══════════════════════════════════════════════
+   SUPABASE CONFIG  (Werte kommen aus config.js)
+═══════════════════════════════════════════════ */
+const _cfg = window.VENCLY_CONFIG || {};
+const SUPABASE_URL      = _cfg.supabaseUrl      || 'DEINE_SUPABASE_URL';
+const SUPABASE_ANON_KEY = _cfg.supabaseAnonKey  || 'DEIN_SUPABASE_ANON_KEY';
+const SUPABASE_TABLE    = 'feedback';
+const PROJECT_NAME      = 'DeltaT';
+
+async function saveFeedback(payload) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+}
+
+/* ═══════════════════════════════════════════════
+   CALCULATION ENGINE
+═══════════════════════════════════════════════ */
+function calculateSystem(inp) {
+  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL } = inp;
+
+  const transmissiv = kf * maechtig;
+  const deltaT = tGW - tR;
+  const qThPerDoublet = Math.max(0.01, Q * deltaT * 4.18 / 1000);
+  const anzahlDoubletten = deltaT > 0 ? Math.max(1, Math.ceil(zielLeistung / qThPerDoublet)) : 999;
+  const qThGesamt = anzahlDoubletten * qThPerDoublet;
+  const gesamtFoerderrate = anzahlDoubletten * Q;
+  const tauchpumpenLeistung = Q * 0.02 * tiefe / 100;
+
+  // Breakthrough time [years]  n=0.25, S=maechtig
+  const n = 0.25;
+  const tBreak = (Math.PI * n * maechtig * abstand * abstand) / (4 * (Q / 1000)) / (365 * 24 * 3600);
+
+  // Specific thermal power [W/m]
+  const spezLeistung = tiefe > 0 ? (qThPerDoublet * 1000) / tiefe : 0;
+
+  // Optimal distance for t_break = 25 years
+  const abstandOpt = Math.sqrt((4 * (Q / 1000) * 25 * 365 * 86400) / (Math.PI * 0.25 * maechtig));
+
+  // Secondary / heat pump
+  const tVL_K = tVL + 273.15;
+  const tGW_K = tGW + 273.15;
+  const tDiff_K = tVL_K - tGW_K;
+  const cop = tDiff_K > 0.5 ? (tVL_K / tDiff_K) * 0.5 : 99; // near-infinite if direct use
+  const elLeistungWP = cop < 90 ? qThGesamt / cop : 0;
+
+  // LMTD – counterflow: hot(T_GW→T_R), cold(T_RL→T_VL)
+  const dT1 = tGW - tVL;   // hot-in minus cold-out
+  const dT2 = tR  - tRL;   // hot-out minus cold-in
+  let lmtd = null;
+  let lmtdValid = false;
+  if (dT1 > 0 && dT2 > 0) {
+    lmtdValid = true;
+    lmtd = Math.abs(dT1 - dT2) < 0.001 ? dT1 : (dT1 - dT2) / Math.log(dT1 / dT2);
+  }
+
+  const U = 4000; // W/(m²·K)
+  const wtFlaeche = lmtdValid && lmtd > 0
+    ? (qThGesamt * 1000) / (U * lmtd)
+    : null;
+
+  // WP type
+  let wpType, wpColor;
+  if (tGW >= tVL - 5)     { wpType = '✔ Direktnutzung möglich';               wpColor = 'green'; }
+  else if (tGW >= 50)     { wpType = '⚡ Hochtemperatur-WP empfohlen';          wpColor = 'yellow'; }
+  else                    { wpType = '🔵 Standard-WP erforderlich';             wpColor = 'orange'; }
+
+  let wpModel;
+  if (tVL <= 65)          { wpModel = 'Standard-Sole-Wasser-WP (z.B. Viessmann Vitocal)'; }
+  else if (tVL <= 90)     { wpModel = 'Hochtemperatur-WP (z.B. Ochsner GMWW, Vaillant flexoTHERM)'; }
+  else                    { wpModel = 'Industrielle HT-WP oder ORC-Prozess prüfen'; }
+
+  // Material
+  let material, materialColor;
+  if (tds < 1000)         { material = '1.4571 (Edelstahl) ausreichend'; materialColor = 'green'; }
+  else if (tds < 10000)   { material = '1.4462 (Duplex-Stahl) empfohlen'; materialColor = 'yellow'; }
+  else                    { material = 'Titan / Hastelloy C-276 erforderlich'; materialColor = 'red'; }
+
+  // Scaling
+  let scaling, scalingColor;
+  if (tds < 500)          { scaling = 'Gering – keine Sondermaßnahmen'; scalingColor = 'green'; }
+  else if (tds < 5000)    { scaling = 'Mittel – Enthärtung / Inhibitoren prüfen'; scalingColor = 'yellow'; }
+  else                    { scaling = 'Hoch – chem. Behandlung + Monitoring'; scalingColor = 'red'; }
+
+  // Status lights
+  const sHydraulik  = kf > 5e-5 ? 'green' : 'red';
+  const sThermik    = deltaT > 0 && qThPerDoublet >= zielLeistung / anzahlDoubletten * 0.95 ? 'green' : 'yellow';
+  const sDurchbruch = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
+  const sCOP        = cop > 3 ? 'green' : cop > 2 ? 'yellow' : 'red';
+  const sMaterial   = materialColor;
+
+  return {
+    transmissiv, deltaT, qThPerDoublet, qThGesamt,
+    anzahlDoubletten, gesamtFoerderrate, tauchpumpenLeistung,
+    tBreak, spezLeistung, abstandOpt,
+    cop, elLeistungWP,
+    lmtd, lmtdValid, wtFlaeche,
+    wpType, wpColor, wpModel,
+    material, materialColor, scaling, scalingColor,
+    dT1, dT2,
+    sHydraulik, sThermik, sDurchbruch, sCOP, sMaterial,
+  };
+}
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════ */
+const fmt = (v, d = 1) => (v == null || isNaN(v) || !isFinite(v)) ? '—' : Number(v).toFixed(d);
+const fmtSci = (v) => {
+  if (!v || v <= 0) return '—';
+  const e = Math.floor(Math.log10(v));
+  const m = v / Math.pow(10, e);
+  const sups = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','-':'⁻' };
+  const supStr = String(e).split('').map(c => sups[c] || c).join('');
+  return `${m.toFixed(2)} × 10${supStr}`;
+};
+
+/* ═══════════════════════════════════════════════
+   PARAM SLIDER COMPONENT
+═══════════════════════════════════════════════ */
+function ParamSlider({ label, unit, value, onChange, min, max, step = 1, tooltip = '', logScale = false }) {
+  const [text, setText] = useState('');
+
+  const toSlider = v => logScale
+    ? ((Math.log10(v) - Math.log10(min)) / (Math.log10(max) - Math.log10(min))) * 100
+    : ((v - min) / (max - min)) * 100;
+
+  const fromSlider = s => logScale
+    ? Math.pow(10, Math.log10(min) + (s / 100) * (Math.log10(max) - Math.log10(min)))
+    : min + (s / 100) * (max - min);
+
+  const displayVal = logScale ? value.toExponential(2) : fmt(value, step < 1 ? 1 : 0);
+
+  useEffect(() => { setText(displayVal); }, [value]);
+
+  const handleSlider = e => {
+    const v = fromSlider(parseFloat(e.target.value));
+    onChange(Math.max(min, Math.min(max, v)));
+  };
+
+  const handleText = e => {
+    setText(e.target.value);
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v) && v >= min && v <= max) onChange(v);
+  };
+
+  const handleBlur = () => setText(displayVal);
+
+  const pct = toSlider(value);
+  const sliderStyle = { '--pct': pct + '%' };
+
+  return (
+    <div className="param-row" title={tooltip}>
+      <div className="param-head">
+        <span className="param-label" dangerouslySetInnerHTML={{ __html: label }}/>
+        <div className="param-right">
+          <input
+            type="text" className="param-number"
+            value={text}
+            onChange={handleText}
+            onBlur={handleBlur}
+          />
+          <span className="param-unit">{unit}</span>
+        </div>
+      </div>
+      <input
+        type="range" min="0" max="100" step="0.1"
+        value={pct}
+        onChange={handleSlider}
+        className="param-slider"
+        style={sliderStyle}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   KPI TILE
+═══════════════════════════════════════════════ */
+function KpiTile({ label, value, unit, color = 'gray', warn = null, sub = null }) {
+  return (
+    <div className={`kpi-tile kpi-${color}`}>
+      {warn && <span className="kpi-warn">{warn}</span>}
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      <div className="kpi-unit">{unit}</div>
+      {sub && <div className="kpi-sub">{sub}</div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   BAR CHART
+═══════════════════════════════════════════════ */
+function BarChart({ qthSingle, qthTotal, zielLeistung }) {
+  const maxVal = Math.max(zielLeistung * 1.15, qthTotal * 1.05, 1);
+  const pctSingle = Math.min(100, (qthSingle / maxVal) * 100);
+  const pctTotal  = Math.min(100, (qthTotal  / maxVal) * 100);
+  const pctTarget = Math.min(100, (zielLeistung / maxVal) * 100);
+
+  return (
+    <div className="bar-chart-card">
+      <div className="bar-chart-title">Leistungsvergleich</div>
+      <div className="bar-row">
+        <div className="bar-label">
+          <span>Zielleistung</span>
+          <strong>{fmt(zielLeistung, 0)} kW</strong>
+        </div>
+        <div className="bar-track">
+          <div className="bar-fill" style={{ width: pctTarget + '%', background: '#94a3b8' }}/>
+        </div>
+      </div>
+      <div className="bar-row">
+        <div className="bar-label">
+          <span>1 Doublette</span>
+          <strong>{fmt(qthSingle, 1)} kW</strong>
+        </div>
+        <div className="bar-track">
+          <div className="bar-fill" style={{ width: pctSingle + '%', background: '#2980B9' }}/>
+        </div>
+      </div>
+      <div className="bar-row">
+        <div className="bar-label">
+          <span>Gesamt (alle Doubletten)</span>
+          <strong>{fmt(qthTotal, 1)} kW</strong>
+        </div>
+        <div className="bar-track">
+          <div className="bar-fill" style={{ width: pctTotal + '%', background: '#16a34a' }}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   STATUS BAR
+═══════════════════════════════════════════════ */
+function StatusBar({ outputs, inputs }) {
+  const items = [
+    { label: 'Hydraulik', detail: `k_f = ${inputs.kf.toExponential(1)} m/s`, status: outputs.sHydraulik },
+    { label: 'Thermik',   detail: `ΔT = ${fmt(outputs.deltaT,1)} K`, status: outputs.sThermik },
+    { label: 'Durchbruchszeit', detail: `${fmt(outputs.tBreak,1)} Jahre`, status: outputs.sDurchbruch },
+    { label: 'WP-Effizienz', detail: `COP = ${outputs.cop > 90 ? '∞' : fmt(outputs.cop,2)}`, status: outputs.sCOP },
+    { label: 'Materialklasse', detail: inputs.tds < 1000 ? 'Edelstahl' : inputs.tds < 10000 ? 'Duplex' : 'Titan/Hastelloy', status: outputs.sMaterial },
+  ];
+  return (
+    <div id="status-bar">
+      <span className="status-bar-title">Status</span>
+      {items.map((it, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <div className="ampel-sep"/>}
+          <div className="ampel-item">
+            <div className={`ampel-dot ${it.status}`}/>
+            <div className="ampel-text">
+              <span className="ampel-label">{it.label}</span>
+              <span className="ampel-detail">{it.detail}</span>
+            </div>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   FEATURE TRACKER
+═══════════════════════════════════════════════ */
+const INITIAL_FEATURES = [
+  { label: 'Geologische Eingabeparameter', status: 'done', tag: 'UI' },
+  { label: 'Primärkreis-Berechnung', status: 'done', tag: 'CALC' },
+  { label: 'Sekundärkreis-Auslegung', status: 'done', tag: 'CALC' },
+  { label: 'WP-Dimensionierung & COP', status: 'done', tag: 'CALC' },
+  { label: 'Ampel-Statusanzeige', status: 'done', tag: 'UI' },
+  { label: 'Wärmetauscher-Dimensionierung', status: 'done', tag: 'CALC' },
+  { label: 'PDF-Export', status: 'wip', tag: 'UI' },
+  { label: 'Karten-Visualisierung (Geo)', status: 'planned', tag: 'DATA' },
+  { label: 'Mehrstandort-Vergleich', status: 'planned', tag: 'DATA' },
+];
+
+function FeatureTracker() {
+  const [features, setFeatures] = useState(INITIAL_FEATURES);
+  const [open, setOpen] = useState(true);
+  const [newFeat, setNewFeat] = useState('');
+
+  const done = features.filter(f => f.status === 'done').length;
+  const pct  = Math.round((done / features.length) * 100);
+
+  const addFeature = () => {
+    if (!newFeat.trim()) return;
+    setFeatures(p => [...p, { label: newFeat.trim(), status: 'planned', tag: 'UI' }]);
+    setNewFeat('');
+  };
+
+  return (
+    <div className="panel-block">
+      <div className="panel-block-header" onClick={() => setOpen(o => !o)}>
+        <span className="panel-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Feature Tracker
+        </span>
+        <span className={`panel-block-toggle ${open ? '' : 'closed'}`}>▾</span>
+      </div>
+      {open && (
+        <div className="panel-block-body">
+          <div className="feat-progress">
+            <div className="feat-progress-label"><span>Fortschritt</span><span>{pct}%</span></div>
+            <div className="feat-progress-track">
+              <div className="feat-progress-fill" style={{ width: pct + '%' }}/>
+            </div>
+          </div>
+          <ul className="feat-list">
+            {features.map((f, i) => (
+              <li key={i} className="feat-item">
+                <span className={`feat-badge feat-${f.status}`}>
+                  {f.status === 'done' ? '✓' : f.status === 'wip' ? '⋯' : '○'}
+                </span>
+                <span className="feat-name">{f.label}</span>
+                <span className={`feat-tag tag-${f.tag.toLowerCase()}`}>{f.tag}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="feat-add">
+            <input
+              value={newFeat} onChange={e => setNewFeat(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addFeature()}
+              placeholder="Neues Feature…"
+            />
+            <button onClick={addFeature}>+</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   BOOT LOG
+═══════════════════════════════════════════════ */
+function BootLog({ entries, onClear }) {
+  const [open, setOpen] = useState(true);
+  const boxRef = useRef(null);
+  useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [entries]);
+  const lvClass = { ok:'lv-ok', info:'lv-info', warn:'lv-warn', err:'lv-err' };
+  return (
+    <div className="panel-block">
+      <div className="panel-block-header" onClick={() => setOpen(o => !o)}>
+        <span className="panel-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          Boot Log
+        </span>
+        <span className={`panel-block-toggle ${open ? '' : 'closed'}`}>▾</span>
+      </div>
+      {open && (
+        <div style={{ position: 'relative' }}>
+          <button className="log-clear" onClick={onClear}>Löschen</button>
+          <div id="boot-log" ref={boxRef}>
+            {entries.map((e, i) => (
+              <div key={i} className="log-line">
+                <span className="log-ts">{e.ts}</span>
+                <span className={`log-lv ${lvClass[e.level] || 'lv-info'}`}>{e.level.toUpperCase()}</span>
+                <span className="log-msg">{e.msg}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   FEEDBACK PANEL
+═══════════════════════════════════════════════ */
+function FeedbackPanel({ addLog, inputs }) {
+  const [type, setType]     = useState('💡 Idee');
+  const [text, setText]     = useState('');
+  const [name, setName]     = useState('');
+  const [status, setStatus] = useState('idle'); // idle | loading | ok | error
+  const [errMsg, setErrMsg] = useState('');
+
+  const notConfigured = SUPABASE_URL === 'DEINE_SUPABASE_URL';
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setStatus('loading');
+    const version = document.getElementById('version-badge')?.textContent ?? '—';
+    const payload = {
+      project:         PROJECT_NAME,
+      type,
+      message:         text.trim(),
+      name:            name.trim() || null,
+      version,
+      inputs_snapshot: inputs ? JSON.stringify(inputs) : null,
+      user_agent:      navigator.userAgent.substring(0, 300),
+    };
+    try {
+      if (notConfigured) {
+        // Dev-Modus: nur loggen, nicht senden
+        await new Promise(r => setTimeout(r, 400));
+        addLog('warn', `[Dev] Feedback nicht gespeichert – Supabase fehlt`);
+      } else {
+        await saveFeedback(payload);
+        addLog('ok', `Feedback gespeichert [${type}] von ${name || 'Anonym'}`);
+      }
+      setText(''); setName(''); setStatus('ok');
+      setTimeout(() => setStatus('idle'), 5000);
+    } catch (err) {
+      setErrMsg(err.message);
+      setStatus('error');
+      addLog('err', `Feedback-Fehler: ${err.message}`);
+      setTimeout(() => setStatus('idle'), 8000);
+    }
+  };
+
+  return (
+    <>
+      <div className="feedback-header">💬 Feedback</div>
+      <div className="feedback-body">
+        <div className="fb-type-row">
+          {['💡 Idee','🐛 Bug','🙏 Wunsch'].map(t => (
+            <button key={t} className={`fb-type-btn ${type===t?'active':''}`} onClick={() => setType(t)}>{t}</button>
+          ))}
+        </div>
+        <textarea id="fb-text" placeholder="Dein Feedback…"
+          value={text} onChange={e => setText(e.target.value)}
+          disabled={status === 'loading'}/>
+        <input id="fb-name" placeholder="Name (optional)"
+          value={name} onChange={e => setName(e.target.value)}
+          disabled={status === 'loading'}/>
+        <button id="fb-submit" onClick={submit}
+          disabled={status === 'loading'}
+          style={status === 'loading' ? { opacity: .6, cursor: 'wait' } : {}}>
+          {status === 'loading' ? '⏳ Wird gesendet…' : 'Feedback senden'}
+        </button>
+        {status === 'ok' && (
+          <div className="fb-ok">✅ Gespeichert{notConfigured ? ' (Dev-Modus)' : ' in Supabase'}!</div>
+        )}
+        {status === 'error' && (
+          <div style={{background:'#fee2e2',borderRadius:6,padding:'6px 8px',fontSize:11,color:'#991b1b',marginTop:4}}>
+            ⚠ {errMsg}
+          </div>
+        )}
+        {notConfigured && (
+          <div style={{background:'#fef9c3',border:'1px solid #fde68a',borderRadius:6,padding:'5px 8px',fontSize:10,color:'#92400e',marginTop:6}}>
+            ⚙ Supabase nicht konfiguriert – siehe <strong>SUPABASE_SETUP.md</strong>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   INPUT COLUMN
+═══════════════════════════════════════════════ */
+function InputColumn({ inputs, setInput, outputs }) {
+  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL } = inputs;
+  return (
+    <div className="calc-col">
+      <div className="col-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        <div>
+          <div className="col-header-title">Eingabeparameter</div>
+          <div className="col-header-sub">Geologie &amp; Betrieb</div>
+        </div>
+      </div>
+
+      {/* GEOLOGIE */}
+      <div className="section-card">
+        <div className="section-title">
+          🗺 Geologie (Exploration)
+        </div>
+        <div className="section-body">
+          <ParamSlider label="Reservoirtiefe" unit="m" min={100} max={2000} step={10}
+            value={tiefe} onChange={v => setInput('tiefe', Math.round(v))}
+            tooltip="Tiefe des nutzbaren Aquiferhorizonts unter GOK" />
+          <ParamSlider label="Aquifer-Mächtigkeit" unit="m" min={5} max={200} step={1}
+            value={maechtig} onChange={v => setInput('maechtig', Math.round(v))}
+            tooltip="Vertikale Ausdehnung des wasserdurchlässigen Horizonts" />
+          <ParamSlider label="Hydraul. Leitfähigkeit k<sub>f</sub>" unit="m/s" min={1e-6} max={1e-2} step={0}
+            value={kf} onChange={v => setInput('kf', v)} logScale
+            tooltip="Maß für die Wasserdurchlässigkeit des Aquifer-Materials (Darcy-Beziehung)" />
+          <ParamSlider label="Grundwassertemperatur T<sub>GW</sub>" unit="°C" min={8} max={80} step={0.5}
+            value={tGW} onChange={v => setInput('tGW', v)}
+            tooltip="Natürliche Temperatur des geförderten Thermalwassers" />
+          <div className="computed-row" title="T = k_f × Mächtigkeit – berechnet aus Eingangsgrößen">
+            <span className="computed-label">Transmissivität T</span>
+            <span className="computed-value">{fmtSci(outputs.transmissiv)} m²/s</span>
+          </div>
+          <ParamSlider label="Mineralgehalt / TDS" unit="mg/l" min={0} max={50000} step={100}
+            value={tds} onChange={v => setInput('tds', Math.round(v))}
+            tooltip="Total Dissolved Solids – beeinflusst Materialwahl und Scaling-Risiko" />
+        </div>
+      </div>
+
+      {/* BETRIEB */}
+      <div className="section-card">
+        <div className="section-title">
+          ⚙️ Betriebsparameter
+        </div>
+        <div className="section-body">
+          <ParamSlider label="Förderrate Q" unit="l/s" min={1} max={100} step={0.5}
+            value={Q} onChange={v => setInput('Q', v)}
+            tooltip="Volumenstrom der Förderbohrung (Entnahme)" />
+          <ParamSlider label="Reinjektionstemperatur T<sub>R</sub>" unit="°C" min={5} max={40} step={0.5}
+            value={tR} onChange={v => setInput('tR', v)}
+            tooltip="Temperatur des in den Aquifer zurückgepumpten Wassers" />
+          <ParamSlider label="Bohrloch-Abstand" unit="m" min={20} max={500} step={5}
+            value={abstand} onChange={v => setInput('abstand', Math.round(v))}
+            tooltip="Horizontaler Abstand zwischen Förder- und Reinjektionsbohrung" />
+        </div>
+      </div>
+
+      {/* ZIELE */}
+      <div className="section-card">
+        <div className="section-title">
+          🎯 Ziele (Sekundärkreis)
+        </div>
+        <div className="section-body">
+          <ParamSlider label="Ziel-Wärmeleistung" unit="kW" min={50} max={10000} step={50}
+            value={zielLeistung} onChange={v => setInput('zielLeistung', Math.round(v / 50) * 50)}
+            tooltip="Gesamte geforderte thermische Leistung des Geothermiesystems" />
+          <ParamSlider label="Vorlauf Fernwärme T<sub>VL</sub>" unit="°C" min={50} max={120} step={1}
+            value={tVL} onChange={v => setInput('tVL', Math.round(v))}
+            tooltip="Vorlauftemperatur des Fernwärmenetzes oder Gebäudeheizung" />
+          <ParamSlider label="Rücklauf Fernwärme T<sub>RL</sub>" unit="°C" min={30} max={70} step={1}
+            value={tRL} onChange={v => setInput('tRL', Math.round(v))}
+            tooltip="Rücklauftemperatur des Wärmenetzes" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   PRIMARY COLUMN
+═══════════════════════════════════════════════ */
+function PrimaryColumn({ inputs, outputs }) {
+  const { tBreak, deltaT, qThPerDoublet, qThGesamt, anzahlDoubletten,
+          gesamtFoerderrate, tauchpumpenLeistung, spezLeistung, abstandOpt } = outputs;
+
+  const breakColor = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
+  const breakWarn  = tBreak > 25 ? null : tBreak > 15 ? '⚠' : '🔴';
+
+  return (
+    <div className="calc-col" style={{ background: '#f7fbff' }}>
+      <div className="col-header" style={{ background: '#1a5276' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <div>
+          <div className="col-header-title">Primärkreis</div>
+          <div className="col-header-sub">Dubletten-System</div>
+        </div>
+      </div>
+
+      <BarChart qthSingle={qThPerDoublet} qthTotal={qThGesamt} zielLeistung={inputs.zielLeistung} />
+
+      {/* KPI grid: top 4 */}
+      <div className="kpi-grid" style={{ marginBottom: 8 }}>
+        <KpiTile label="Temperatur-Hub ΔT" value={fmt(deltaT,1)} unit="K"
+          color={deltaT > 0 ? 'hot' : 'red'}
+          sub={`${inputs.tGW}°C − ${inputs.tR}°C`} />
+        <KpiTile label="Thermische Leistung" value={fmt(qThPerDoublet,1)} unit="kW"
+          color="cold" sub="pro Doublette" />
+        <KpiTile label="Doubletten benötigt" value={anzahlDoubletten > 50 ? '>50' : anzahlDoubletten} unit="Stk."
+          color={anzahlDoubletten <= 3 ? 'green' : anzahlDoubletten <= 10 ? 'navy' : 'yellow'} />
+        <KpiTile label="Gesamtförderrate" value={fmt(gesamtFoerderrate,1)} unit="l/s"
+          color="blue" />
+      </div>
+
+      {/* KPI grid: bottom 4 */}
+      <div className="kpi-grid">
+        <KpiTile label="Tauchpumpen-Leistung" value={fmt(tauchpumpenLeistung,1)} unit="kW"
+          color="gray" sub="Schätzung" />
+        <KpiTile label="Durchbruchszeit" value={fmt(tBreak,1)} unit="Jahre"
+          color={breakColor} warn={breakWarn} />
+        <KpiTile label="Spez. Wärmeleistung" value={fmt(spezLeistung,1)} unit="W/m"
+          color="navy" sub="pro Bohrmeter" />
+        <KpiTile label="Opt. Bohrloch-Abstand" value={fmt(abstandOpt,0)} unit="m"
+          color="blue" sub="für t > 25 J." />
+      </div>
+
+      {/* Details card */}
+      <div className="section-card" style={{ marginTop: 10 }}>
+        <div className="section-title">📊 Kennzahlen Gesamt</div>
+        <div className="section-body">
+          {[
+            ['Gesamt-Wärmeleistung', fmt(qThGesamt,1), 'kW'],
+            ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
+            ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
+            ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
+          ].map(([k, v, u]) => (
+            <div key={k} className="rec-row">
+              <span className="rec-key">{k}</span>
+              <span className="rec-val">{v} {u}</span>
+            </div>
+          ))}
+          {tBreak < 25 && (
+            <div style={{ marginTop: 8, padding: '6px 8px', background: tBreak < 15 ? '#fee2e2' : '#fef3c7', borderRadius: 6, fontSize: 11, color: tBreak < 15 ? '#991b1b' : '#92400e' }}>
+              {tBreak < 15
+                ? `⚠ Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Abstand auf ${fmt(abstandOpt,0)} m erhöhen!`
+                : `ℹ Durchbruch in ${fmt(tBreak,1)} J. – empfohlener Mindestabstand: ${fmt(abstandOpt,0)} m`}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   SECONDARY COLUMN
+═══════════════════════════════════════════════ */
+function SecondaryColumn({ inputs, outputs }) {
+  const { cop, elLeistungWP, wpType, wpColor, wpModel,
+          material, materialColor, scaling, scalingColor,
+          lmtd, lmtdValid, wtFlaeche, qThGesamt, dT1, dT2 } = outputs;
+
+  const riskDot = { green: '#16a34a', yellow: '#d97706', red: '#dc2626' };
+
+  return (
+    <div className="calc-col">
+      <div className="col-header" style={{ background: '#6b3074' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"/></svg>
+        <div>
+          <div className="col-header-title">Sekundärkreis</div>
+          <div className="col-header-sub">WP · Material · Netz</div>
+        </div>
+      </div>
+
+      {/* WP Temperature check */}
+      <div className="rec-card">
+        <div className="rec-header">🌡 Wärmepumpen-Temperaturniveau</div>
+        <div className="rec-body">
+          <div className={`rec-badge badge-${wpColor === 'green' ? 'green' : wpColor === 'yellow' ? 'yellow' : 'orange'}`}>
+            {wpType}
+          </div>
+          <div className="rec-row"><span className="rec-key">Empfohlener WP-Typ</span><span className="rec-val">{wpModel}</span></div>
+          <div className="rec-row"><span className="rec-key">T<sub>GW</sub> / T<sub>VL</sub></span><span className="rec-val">{inputs.tGW}°C / {inputs.tVL}°C</span></div>
+        </div>
+      </div>
+
+      {/* COP */}
+      <div className="rec-card">
+        <div className="rec-header">⚡ Wärmepumpen-Effizienz</div>
+        <div className="rec-body">
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 8 }}>
+            <div>
+              <div className="cop-big" style={{ color: cop > 3 ? '#16a34a' : cop > 2 ? '#d97706' : '#dc2626' }}>
+                {cop > 90 ? '∞' : fmt(cop, 2)}
+              </div>
+              <div className="cop-label">COP (Carnot×50%)</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              {[
+                ['Elektr. Leistungsaufnahme', cop > 90 ? '0' : fmt(elLeistungWP,1), 'kW'],
+                ['Wärmeleistung gesamt', fmt(qThGesamt,1), 'kW'],
+              ].map(([k,v,u]) => (
+                <div key={k} className="rec-row">
+                  <span className="rec-key" style={{ fontSize: 10 }}>{k}</span>
+                  <span className="rec-val">{v} {u}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {cop < 2 && (
+            <div style={{ background: '#fee2e2', borderRadius: 6, padding: '5px 8px', fontSize: 11, color: '#991b1b' }}>
+              ⚠ COP &lt; 2 – Wirtschaftlichkeit prüfen. Höheres T<sub>GW</sub> oder niedrigeres T<sub>VL</sub> anstreben.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Material */}
+      <div className="rec-card">
+        <div className="rec-header">🔩 Werkstoff &amp; Korrosion</div>
+        <div className="rec-body">
+          <div className="risk-row">
+            <div className="risk-dot" style={{ background: riskDot[materialColor] }}/>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>{material}</span>
+          </div>
+          <div className="rec-row"><span className="rec-key">TDS-Gehalt</span><span className="rec-val">{inputs.tds.toLocaleString('de-DE')} mg/l</span></div>
+          <div className="rec-row" style={{ marginTop: 4 }}>
+            <span className="rec-key">Scaling-Risiko</span>
+          </div>
+          <div className="risk-row" style={{ marginTop: 2 }}>
+            <div className="risk-dot" style={{ background: riskDot[scalingColor] }}/>
+            <span style={{ fontSize: 11 }}>{scaling}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Heat exchanger */}
+      <div className="rec-card">
+        <div className="rec-header">♨ Wärmetauscher (Plattenwärmetauscher)</div>
+        <div className="rec-body">
+          {lmtdValid ? (
+            <>
+              {[
+                ['Typ', 'Plattenwärmetauscher (gepresst o. gelötet)'],
+                ['U-Wert (Wasser/Wasser)', '4.000 W/(m²·K)'],
+                ['ΔT₁ (Eintritt)', `${fmt(dT1,1)} K`],
+                ['ΔT₂ (Austritt)', `${fmt(dT2,1)} K`],
+                ['LMTD', `${fmt(lmtd,2)} K`],
+                ['Wärmetauscherfläche', wtFlaeche != null ? `${fmt(wtFlaeche,1)} m²` : '—'],
+              ].map(([k,v]) => (
+                <div key={k} className="rec-row">
+                  <span className="rec-key">{k}</span>
+                  <span className="rec-val">{v}</span>
+                </div>
+              ))}
+              <div className="wt-formula">
+                A = Q<sub>th,ges</sub> / (U × LMTD)<br/>
+                A = {fmt(qThGesamt,1)}kW·1000 / (4000 × {fmt(lmtd,2)}) = {wtFlaeche != null ? fmt(wtFlaeche,1) : '—'} m²
+              </div>
+            </>
+          ) : (
+            <div style={{ background: '#fff7ed', borderRadius: 6, padding: '8px', fontSize: 11, color: '#9a3412' }}>
+              ⚠ T<sub>GW</sub> = {inputs.tGW}°C &lt; T<sub>VL</sub> = {inputs.tVL}°C:<br/>
+              Direkter Wärmetausch nicht möglich. Die WP-Evaporatorseite
+              muss separat ausgelegt werden (Zwischenkreis mit ΔT ≈ 3 K empfohlen).
+              <div className="rec-row" style={{ marginTop: 6 }}>
+                <span className="rec-key">Näherungsfläche (ΔT = 3K)</span>
+                <span className="rec-val">{fmt(qThGesamt * 1000 / (4000 * 3), 1)} m²</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   VENCLY LOGO (inline SVG)
+═══════════════════════════════════════════════ */
+function VenclyLogo() {
+  return (
+    <a href="https://www.vencly.com" target="_blank" rel="noopener noreferrer" className="vencly-logo" title="Vencly">
+      <svg viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="vg2" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3B82F6"/>
+            <stop offset="40%" stopColor="#8B5CF6"/>
+            <stop offset="70%" stopColor="#EC4899"/>
+            <stop offset="100%" stopColor="#F97316"/>
+          </linearGradient>
+        </defs>
+        <polygon points="10,8 36,8 55,50 74,8 100,8 55,65" fill="url(#vg2)"/>
+        <text x="112" y="48" fontFamily="'Segoe UI',system-ui,sans-serif"
+          fontSize="34" fontWeight="700" fill="#ffffff" letterSpacing="-0.5">vencly</text>
+      </svg>
+    </a>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════════ */
+function Topbar({ showLeft, setShowLeft, showRight, setShowRight }) {
+  const version = (() => {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    const ys = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const w = Math.ceil((((d - ys) / 86400000) + 1) / 7);
+    const build = String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+    return `v${now.getFullYear()}.W${String(w).padStart(2,'0')}.${build}`;
+  })();
+
+  return (
+    <div id="topbar">
+      <div className="tb-left">
+        <VenclyLogo />
+        <div className="tb-sep"/>
+        <div>
+          <div className="tb-title">DeltaT</div>
+          <div className="tb-subtitle">Geothermie Auslegungsrechner</div>
+        </div>
+        <span id="version-badge">{version}</span>
+      </div>
+      <div className="tb-right">
+        <button className={`tb-btn ${showLeft ? 'active' : ''}`} onClick={() => setShowLeft(s => !s)} title="Feature-Tracker & Boot-Log">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Tracker
+        </button>
+        <button className={`tb-btn ${showRight ? 'active' : ''}`} onClick={() => setShowRight(s => !s)} title="Feedback geben">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          Feedback
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   APP ROOT
+═══════════════════════════════════════════════ */
+function App() {
+  const [showLeft, setShowLeft]   = useState(false);
+  const [showRight, setShowRight] = useState(false);
+  const [logEntries, setLogEntries] = useState([]);
+
+  const [inputs, setInputs] = useState({
+    tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 16, tds: 500,
+    Q: 15, tR: 12, abstand: 100,
+    zielLeistung: 5000, tVL: 90, tRL: 55,
+  });
+
+  const outputs = useMemo(() => calculateSystem(inputs), [inputs]);
+
+  const addLog = useCallback((level, msg) => {
+    const ts = new Date().toTimeString().slice(0, 8);
+    setLogEntries(prev => [...prev.slice(-149), { ts, level, msg }]);
+  }, []);
+
+  const setInput = useCallback((key, val) => {
+    setInputs(prev => {
+      if (prev[key] === val) return prev;
+      return { ...prev, [key]: val };
+    });
+  }, []);
+
+  // Log parameter changes (throttled)
+  const lastLogRef = useRef({});
+  useEffect(() => {
+    const names = { tiefe:'Reservoirtiefe', maechtig:'Aquifer-Mächtigkeit', kf:'k_f', tGW:'T_GW',
+      tds:'TDS', Q:'Förderrate', tR:'T_R', abstand:'Bohrloch-Abstand',
+      zielLeistung:'Zielleistung', tVL:'T_VL', tRL:'T_RL' };
+    Object.entries(inputs).forEach(([k, v]) => {
+      if (lastLogRef.current[k] !== v) {
+        const display = k === 'kf' ? v.toExponential(2) : v;
+        addLog('info', `${names[k] || k}: ${display}`);
+        lastLogRef.current[k] = v;
+      }
+    });
+  }, [inputs]);
+
+  // Boot sequence
+  useEffect(() => {
+    const steps = [
+      [0,   'ok',   'DeltaT Geothermie-Rechner gestartet'],
+      [400, 'info', 'Berechnungsmodul initialisiert'],
+      [800, 'ok',   'Standardwerte geladen'],
+      [1200,'ok',   'Echtzeit-Aktualisierung aktiv ✓'],
+    ];
+    steps.forEach(([d, l, m]) => setTimeout(() => addLog(l, m), d));
+  }, []);
+
+  return (
+    <>
+      <Topbar showLeft={showLeft} setShowLeft={setShowLeft} showRight={showRight} setShowRight={setShowRight} />
+      <div id="app-shell">
+        <div id="left-panel" className={showLeft ? '' : 'hidden'}>
+          <FeatureTracker />
+          <BootLog entries={logEntries} onClear={() => setLogEntries([])} />
+        </div>
+
+        <div id="calc-area">
+          <div id="calc-grid">
+            <InputColumn inputs={inputs} setInput={setInput} outputs={outputs} />
+            <PrimaryColumn inputs={inputs} outputs={outputs} />
+            <SecondaryColumn inputs={inputs} outputs={outputs} />
+          </div>
+        </div>
+
+        <div id="right-panel" className={showRight ? '' : 'hidden'}>
+          <FeedbackPanel addLog={addLog} inputs={inputs} />
+        </div>
+      </div>
+      <StatusBar outputs={outputs} inputs={inputs} />
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
