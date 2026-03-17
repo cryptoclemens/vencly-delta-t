@@ -553,7 +553,7 @@ function calculateSystem(inp) {
   const tGW_K = tGW + 273.15;
   const tDiff_K = tVL_K - tGW_K;
   const cop = tDiff_K > 0.5 ? (tVL_K / tDiff_K) * 0.5 : 99; // near-infinite if direct use
-  const elLeistungWP = cop < 90 ? qThGesamt / cop : 0;
+  const elLeistungWP = cop < 90 ? qThGesamt / (cop - 1) : 0; // W_el = Q_geo / (COP-1), da COP = (Q_geo + W_el) / W_el
 
   // LMTD – counterflow: hot(T_GW→T_R), cold(T_RL→T_VL)
   const dT1 = tGW - tVL;   // hot-in minus cold-out
