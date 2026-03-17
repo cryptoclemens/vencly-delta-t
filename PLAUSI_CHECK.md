@@ -6,7 +6,7 @@
 
 ## Zusammenfassung
 
-Der Rechner ist konzeptionell korrekt aufgebaut. Zwei kritische Rechenfehler wurden identifiziert und behoben. Mehrere Vereinfachungen sind für eine Vorauslegung akzeptabel, sollten aber bei der Interpretation der Ergebnisse bekannt sein.
+Der Rechner ist konzeptionell korrekt aufgebaut. Drei kritische Rechenfehler wurden identifiziert und behoben (Q_th ×1000, Tauchpumpe ×82, WP-Elektrik COP/(COP−1)). Mehrere Vereinfachungen sind für eine Vorauslegung akzeptabel, sollten aber bei der Interpretation der Ergebnisse bekannt sein.
 
 ---
 
@@ -62,7 +62,25 @@ Dies ist die klassische analytische Lösung nach Drost (1978) für einen homogen
 
 ---
 
-## 4. COP-Formel ✅ (wissenschaftlich solide)
+## 4. Elektrische WP-Leistung ✅ (Bug behoben)
+
+**Formel im Code (alt):** `P_el = Q_th_gesamt / COP`
+
+**Problem:** COP ist definiert als Q_geliefert / W_el, wobei Q_geliefert = Q_geo + W_el (Wärmepumpe addiert elektrische Energie zur Quellwärme). Daraus folgt:
+
+**Korrigierte Formel:** `P_el [kW] = Q_geo / (COP − 1)`
+
+**Numerisches Beispiel** (T_VL = 90 °C, T_GW = 16 °C → COP = 2,45):
+- Alter Code: P_el = 5000/2,45 = 2.041 kW → COP-Check: (5000+2041)/2041 = **3,45 ≠ 2,45** ❌
+- Korrigiert: P_el = 5000/(2,45−1) = 3.448 kW → COP-Check: (5000+3448)/3448 = **2,45** ✅
+
+Der Fehler unterschätzte die elektrische Leistung um den Faktor COP/(COP−1), bei COP 2,45 also um **~69 %**.
+
+**Literatur:** IEA Heat Pump Programme Annex 47, EN 14511 (COP-Definition für WP).
+
+---
+
+## 5. COP-Formel ✅ (wissenschaftlich solide)
 
 **Formel:** `COP = (T_VL [K] / (T_VL [K] – T_GW [K])) × 0,5`
 
@@ -77,7 +95,7 @@ Dies ist der **Carnot-COP × 50 %** – eine in der Praxis gut etablierte Näher
 
 ---
 
-## 5. LMTD & Wärmetauscherfläche ✅ (korrekt)
+## 6. LMTD & Wärmetauscherfläche ✅ (korrekt)
 
 **Formel:** LMTD-Gegenstrom, A = Q_th / (U × LMTD) mit U = 4.000 W/(m²·K)
 
@@ -85,7 +103,7 @@ Dies ist der **Carnot-COP × 50 %** – eine in der Praxis gut etablierte Näher
 
 ---
 
-## 6. Transmissivität ✅ (korrekt)
+## 7. Transmissivität ✅ (korrekt)
 
 **Formel:** `T = k_f × b`
 
@@ -93,7 +111,7 @@ Standarddefinition der hydraulischen Transmissivität für gespannte Aquifere. K
 
 ---
 
-## 7. Materialklassen (TDS-Schwellwerte) ⚠️ (vereinfacht)
+## 8. Materialklassen (TDS-Schwellwerte) ⚠️ (vereinfacht)
 
 **Was stimmt:** Die Grundtendenz ist richtig – mehr gelöste Stoffe → korrosiveres Wasser → hochwertigere Werkstoffe.
 
@@ -108,7 +126,7 @@ Standarddefinition der hydraulischen Transmissivität für gespannte Aquifere. K
 
 ---
 
-## 8. Hydraulik-Ampel ⚠️ (Schwellwert etwas zu einfach)
+## 9. Hydraulik-Ampel ⚠️ (Schwellwert etwas zu einfach)
 
 **Code:** `k_f > 5×10⁻⁵ m/s → grün`
 
@@ -118,7 +136,7 @@ Standarddefinition der hydraulischen Transmissivität für gespannte Aquifere. K
 
 ---
 
-## 9. Forschungsstand: Optimales ΔT
+## 10. Forschungsstand: Optimales ΔT
 
 Es gibt **keine universelle** wissenschaftliche Antwort auf „das ideale ΔT". Die optimale Reinjektionstemperatur ist ein Abwägungsproblem:
 
@@ -140,6 +158,7 @@ Es gibt **keine universelle** wissenschaftliche Antwort auf „das ideale ΔT". 
 |---|---|
 | Thermische Leistung | ✅ korrigiert (war ×1000 falsch) |
 | Tauchpumpenleistung | ✅ korrigiert (war ×82 zu niedrig) |
+| Elektr. WP-Leistung | ✅ korrigiert (war Q/COP statt Q/(COP−1), ~69% zu niedrig) |
 | Durchbruchszeit (Drost) | ✅ korrekt, aber vereinfacht |
 | COP (Carnot×50%) | ✅ wissenschaftlich valide |
 | LMTD & WT-Fläche | ✅ korrekt |

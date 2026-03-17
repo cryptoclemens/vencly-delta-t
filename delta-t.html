@@ -9,6 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <style>
     /* ═══════════════════════════════════════════════
        ROOT & RESET
@@ -553,7 +554,7 @@ function calculateSystem(inp) {
   const tGW_K = tGW + 273.15;
   const tDiff_K = tVL_K - tGW_K;
   const cop = tDiff_K > 0.5 ? (tVL_K / tDiff_K) * 0.5 : 99; // near-infinite if direct use
-  const elLeistungWP = cop < 90 ? qThGesamt / cop : 0;
+  const elLeistungWP = cop < 90 ? qThGesamt / (cop - 1) : 0; // W_el = Q_geo / (COP-1), da COP = (Q_geo + W_el) / W_el
 
   // LMTD – counterflow: hot(T_GW→T_R), cold(T_RL→T_VL)
   const dT1 = tGW - tVL;   // hot-in minus cold-out
@@ -632,6 +633,219 @@ const fmtSci = (v) => {
   const supStr = String(e).split('').map(c => sups[c] || c).join('');
   return `${m.toFixed(2)} × 10${supStr}`;
 };
+
+/* ═══════════════════════════════════════════════
+   PDF EXPORT
+═══════════════════════════════════════════════ */
+function generatePDF(inputs, outputs) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, M = 15; // page width, margin
+  const CW = W - 2 * M; // content width
+  let y = 0;
+
+  // ── Colors ──
+  const navy = [13, 43, 85];
+  const navyLight = [232, 240, 250];
+  const textCol = [13, 27, 46];
+  const muted = [90, 115, 152];
+  const green = [22, 163, 74];
+  const yellow = [217, 119, 6];
+  const red = [220, 38, 38];
+  const statusColors = { green, yellow, red };
+
+  // ── Helper: check page break ──
+  const checkPage = (need) => {
+    if (y + need > 282) { doc.addPage(); y = 20; }
+  };
+
+  // ── Header bar ──
+  doc.setFillColor(...navy);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text('DeltaT', M, 13);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(200, 210, 230);
+  doc.text('Geothermie Auslegungsrechner', M, 19);
+
+  // Version + date right-aligned
+  const version = document.getElementById('version-badge')?.textContent ?? '';
+  const dateStr = new Date().toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  doc.setFontSize(8);
+  doc.setTextColor(147, 197, 253);
+  doc.text(version, W - M, 12, { align: 'right' });
+  doc.setTextColor(200, 210, 230);
+  doc.text(`Erstellt: ${dateStr}`, W - M, 18, { align: 'right' });
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.text('vencly.com', W - M, 24, { align: 'right' });
+
+  y = 36;
+
+  // ── Section header helper ──
+  const sectionHeader = (title) => {
+    checkPage(14);
+    doc.setFillColor(...navyLight);
+    doc.roundedRect(M, y, CW, 8, 1, 1, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...navy);
+    doc.text(title.toUpperCase(), M + 4, y + 5.5);
+    y += 12;
+  };
+
+  // ── Table row helper ──
+  const tableRow = (label, value, highlight = false) => {
+    checkPage(7);
+    if (highlight) {
+      doc.setFillColor(245, 249, 255);
+      doc.rect(M, y - 1, CW, 6, 'F');
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text(label, M + 3, y + 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...textCol);
+    doc.text(value, W - M - 3, y + 3, { align: 'right' });
+    y += 6.5;
+  };
+
+  // ── Status dot helper ──
+  const statusRow = (label, detail, status) => {
+    checkPage(7);
+    const col = statusColors[status] || muted;
+    doc.setFillColor(...col);
+    doc.circle(M + 5, y + 2.5, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...textCol);
+    doc.text(label, M + 10, y + 3.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...muted);
+    doc.text(detail, W - M - 3, y + 3.5, { align: 'right' });
+    y += 7;
+  };
+
+  // ══════════════════════════════════════════
+  //  1) EINGABEPARAMETER
+  // ══════════════════════════════════════════
+  sectionHeader('Eingabeparameter – Geologie');
+  tableRow('Reservoirtiefe', `${inputs.tiefe} m`);
+  tableRow('Aquifer-Maechtigkeit', `${inputs.maechtig} m`, true);
+  tableRow('Hydraul. Leitfaehigkeit k_f', `${inputs.kf.toExponential(2)} m/s`);
+  tableRow('Grundwassertemperatur T_GW', `${inputs.tGW} °C`, true);
+  tableRow('Transmissivitaet T (berechnet)', `${fmtSci(outputs.transmissiv)} m²/s`);
+  tableRow('Mineralgehalt / TDS', `${inputs.tds.toLocaleString('de-DE')} mg/l`, true);
+
+  y += 2;
+  sectionHeader('Eingabeparameter – Betrieb');
+  tableRow('Foerderrate Q', `${inputs.Q} l/s`);
+  tableRow('Reinjektionstemperatur T_R', `${inputs.tR} °C`, true);
+  tableRow('Bohrloch-Abstand', `${inputs.abstand} m`);
+
+  y += 2;
+  sectionHeader('Eingabeparameter – Ziele (Sekundaerkreis)');
+  tableRow('Ziel-Waermeleistung', `${inputs.zielLeistung.toLocaleString('de-DE')} kW`);
+  tableRow('Vorlauf Fernwaerme T_VL', `${inputs.tVL} °C`, true);
+  tableRow('Ruecklauf Fernwaerme T_RL', `${inputs.tRL} °C`);
+
+  // ══════════════════════════════════════════
+  //  2) PRIMÄRKREIS
+  // ══════════════════════════════════════════
+  y += 4;
+  sectionHeader('Primaerkreis – Dubletten-System');
+  tableRow('Temperatur-Hub Delta_T', `${fmt(outputs.deltaT, 1)} K`);
+  tableRow('Thermische Leistung (pro Doublette)', `${fmt(outputs.qThPerDoublet, 1)} kW`, true);
+  tableRow('Doubletten benoetigt', `${outputs.anzahlDoubletten > 50 ? '>50' : outputs.anzahlDoubletten} Stk.`);
+  tableRow('Gesamtfoerderrate', `${fmt(outputs.gesamtFoerderrate, 1)} l/s`, true);
+  tableRow('Tauchpumpen-Leistung', `${fmt(outputs.tauchpumpenLeistung, 1)} kW`);
+  tableRow('Durchbruchszeit', `${fmt(outputs.tBreak, 1)} Jahre`, true);
+  tableRow('Spez. Waermeleistung', `${fmt(outputs.spezLeistung, 1)} W/m`);
+  tableRow('Opt. Bohrloch-Abstand (25 J.)', `${fmt(outputs.abstandOpt, 0)} m`, true);
+
+  y += 2;
+  sectionHeader('Kennzahlen Gesamt');
+  tableRow('Gesamt-Waermeleistung', `${fmt(outputs.qThGesamt, 1)} kW`);
+  tableRow('Gesamt-Foerderrate', `${fmt(outputs.gesamtFoerderrate, 1)} l/s`, true);
+  tableRow('Gesamte Bohrtiefe', `${fmt(outputs.anzahlDoubletten * inputs.tiefe * 2, 0)} m (Foerder+Reinjekt.)`);
+  tableRow('Pump-Eigenverbrauch', `${fmt(outputs.tauchpumpenLeistung * outputs.anzahlDoubletten, 1)} kW (alle Doubletten)`, true);
+
+  // ══════════════════════════════════════════
+  //  3) SEKUNDÄRKREIS
+  // ══════════════════════════════════════════
+  y += 4;
+  sectionHeader('Sekundaerkreis – Waermepumpe');
+  const tHub = inputs.tVL - inputs.tGW;
+  tableRow('Temperaturhub Delta_T_Hub (T_VL - T_GW)', `${tHub} K`);
+  // WP type as plain text (strip emoji)
+  const wpClean = outputs.wpType.replace(/[^\w\s()–≤>°äöüÄÖÜß/·\-]/g, '').trim();
+  tableRow('WP-Typ', wpClean, true);
+  tableRow('COP (Carnot x 50%)', outputs.cop > 90 ? 'Direktnutzung' : fmt(outputs.cop, 2));
+  tableRow('Elektr. Leistungsaufnahme', outputs.cop > 90 ? '0 kW' : `${fmt(outputs.elLeistungWP, 1)} kW`, true);
+
+  y += 2;
+  sectionHeader('Werkstoff & Korrosion');
+  tableRow('Materialklasse', outputs.material);
+  tableRow('TDS-Gehalt', `${inputs.tds.toLocaleString('de-DE')} mg/l`, true);
+  tableRow('Scaling-Risiko', outputs.scaling);
+
+  y += 2;
+  sectionHeader('Waermetauscher (Plattenwaermetauscher)');
+  if (outputs.lmtdValid) {
+    tableRow('U-Wert (Wasser/Wasser)', '4.000 W/(m²·K)');
+    tableRow('Delta_T_1 (Eintritt)', `${fmt(outputs.dT1, 1)} K`, true);
+    tableRow('Delta_T_2 (Austritt)', `${fmt(outputs.dT2, 1)} K`);
+    tableRow('LMTD', `${fmt(outputs.lmtd, 2)} K`, true);
+    tableRow('Waermetauscherflaeche', outputs.wtFlaeche != null ? `${fmt(outputs.wtFlaeche, 1)} m²` : '—');
+  } else {
+    checkPage(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(...yellow);
+    doc.text(`T_GW = ${inputs.tGW} °C < T_VL = ${inputs.tVL} °C: Direkter Waermetausch nicht moeglich.`, M + 3, y + 3);
+    y += 6;
+    tableRow('Naeherungsflaeche (Delta_T = 3K)', `${fmt(outputs.qThGesamt * 1000 / (4000 * 3), 1)} m²`);
+  }
+
+  // ══════════════════════════════════════════
+  //  4) STATUS (AMPEL)
+  // ══════════════════════════════════════════
+  y += 4;
+  sectionHeader('Status-Bewertung (Ampel)');
+  statusRow('Hydraulik', `k_f = ${inputs.kf.toExponential(1)} m/s`, outputs.sHydraulik);
+  statusRow('Thermik', `Delta_T = ${fmt(outputs.deltaT, 1)} K`, outputs.sThermik);
+  statusRow('Durchbruchszeit', `${fmt(outputs.tBreak, 1)} Jahre`, outputs.sDurchbruch);
+  statusRow('WP-Effizienz', `COP = ${outputs.cop > 90 ? 'Direkt' : fmt(outputs.cop, 2)}`, outputs.sCOP);
+  statusRow('Materialklasse', inputs.tds < 1000 ? 'Edelstahl' : inputs.tds < 10000 ? 'Duplex' : 'Titan/Hastelloy', outputs.sMaterial);
+
+  // ── Footer ──
+  checkPage(16);
+  y += 6;
+  doc.setDrawColor(...navyLight);
+  doc.line(M, y, W - M, y);
+  y += 5;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(...muted);
+  doc.text('Dieser Bericht wurde automatisch mit DeltaT (vencly.com) erstellt. Alle Berechnungen basieren auf', M, y);
+  y += 3.5;
+  doc.text('VDI 4640, EN 14511, Arpagaus et al. (2018), Zuehlsdorf et al. (2019), Drost (1978) u.a.', M, y);
+  y += 3.5;
+  doc.text('Die Ergebnisse dienen der Vorabschaetzung und ersetzen keine detaillierte Projektplanung.', M, y);
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...navy);
+  doc.text('vencly GmbH  |  Leopoldstrasse 31, 80802 Muenchen  |  hello@vencly.com', W / 2, y, { align: 'center' });
+
+  // ── Save ──
+  const ts = new Date().toISOString().slice(0, 10);
+  doc.save(`DeltaT_Auslegung_${ts}.pdf`);
+}
 
 /* ═══════════════════════════════════════════════
    PARAM SLIDER COMPONENT
@@ -940,7 +1154,7 @@ const INITIAL_FEATURES = [
   { label: 'WP-Dimensionierung & COP', status: 'done', tag: 'CALC' },
   { label: 'Ampel-Statusanzeige', status: 'done', tag: 'UI' },
   { label: 'Wärmetauscher-Dimensionierung', status: 'done', tag: 'CALC' },
-  { label: 'PDF-Export', status: 'wip', tag: 'UI' },
+  { label: 'PDF-Export', status: 'done', tag: 'UI' },
   { label: 'Karten-Visualisierung (Geo)', status: 'planned', tag: 'DATA' },
   { label: 'Mehrstandort-Vergleich', status: 'planned', tag: 'DATA' },
 ];
@@ -1427,7 +1641,7 @@ function VenclyLogo() {
 /* ═══════════════════════════════════════════════
    TOPBAR
 ═══════════════════════════════════════════════ */
-function Topbar({ showLeft, setShowLeft, showRight, setShowRight }) {
+function Topbar({ showLeft, setShowLeft, showRight, setShowRight, onExportPDF }) {
   const version = (() => {
     const now = new Date();
     const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -1451,6 +1665,10 @@ function Topbar({ showLeft, setShowLeft, showRight, setShowRight }) {
         <span id="version-badge">{version}</span>
       </div>
       <div className="tb-right">
+        <button className="tb-btn" onClick={onExportPDF} title="Auslegung als PDF exportieren">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+          PDF
+        </button>
         <button className={`tb-btn ${showLeft ? 'active' : ''}`} onClick={() => setShowLeft(s => !s)} title="Feature-Tracker & Boot-Log">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Tracker
@@ -1586,7 +1804,7 @@ function App() {
 
   return (
     <>
-      <Topbar showLeft={showLeft} setShowLeft={setShowLeft} showRight={showRight} setShowRight={setShowRight} />
+      <Topbar showLeft={showLeft} setShowLeft={setShowLeft} showRight={showRight} setShowRight={setShowRight} onExportPDF={() => generatePDF(inputs, outputs)} />
       <div id="app-shell">
         <div id="left-panel" className={showLeft ? '' : 'hidden'}>
           <FeatureTracker />
