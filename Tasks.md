@@ -1,6 +1,6 @@
 # Tasks – Vencly DeltaT (Geothermie Auslegungsrechner)
 
-**Fortschritt: 60%**
+**Fortschritt: 70%**
 
 ## Erledigt
 
@@ -10,10 +10,7 @@
 - [x] **WP-Dimensionierung & COP** `CALC`
 - [x] **Ampel-Statusanzeige** `UI`
 - [x] **Wärmetauscher-Dimensionierung** `CALC`
-
-## In Arbeit
-
-- [ ] **PDF-Export** `UI`
+- [x] **PDF-Export** `UI`
 
 ## Offen
 
