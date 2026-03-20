@@ -541,8 +541,23 @@ function calculateSystem(inp) {
   const transmissiv = kf * maechtig;
   const deltaT = tGW - tR;
   const qThPerDoublet = Math.max(0.01, Q * deltaT * 4.18); // kW: Q[l/s=kg/s] × c_p[kJ/kg/K] × ΔT[K]
-  const anzahlDoubletten = deltaT > 0 ? Math.max(1, Math.ceil(zielLeistung / qThPerDoublet)) : 999;
+
+  // WP-Beitrag berücksichtigen: Q_delivered = Q_geo + W_el = Q_geo × COP/(COP-1)
+  // → Q_geo_needed = zielLeistung × (COP-1)/COP  (wenn WP aktiv)
+  // Vorab-COP berechnen (gleiche Formel wie unten)
+  const _tVL_K = tVL + 273.15;
+  const _tGW_K = tGW + 273.15;
+  const _tDiff = _tVL_K - _tGW_K;
+  const _copEst = _tDiff > 0.5 ? (_tVL_K / _tDiff) * 0.5 : 99;
+  const wpAktiv = tVL > tGW; // WP nötig wenn Vorlauf > Grundwassertemp
+  const qGeoBenoetigt = wpAktiv && _copEst < 90
+    ? zielLeistung * (_copEst - 1) / _copEst  // WP addiert W_el → weniger Q_geo nötig
+    : zielLeistung;                             // Direktnutzung: Q_geo = Q_delivered
+  const anzahlDoubletten = deltaT > 0 ? Math.max(1, Math.ceil(qGeoBenoetigt / qThPerDoublet)) : 999;
   const qThGesamt = anzahlDoubletten * qThPerDoublet;
+  const qDelivered = wpAktiv && _copEst < 90
+    ? qThGesamt * _copEst / (_copEst - 1)      // Q_geo + W_el
+    : qThGesamt;                                 // Direktnutzung
   const gesamtFoerderrate = anzahlDoubletten * Q;
   const tauchpumpenLeistung = (Q / 1000) * 1000 * 9.81 * tiefe / (0.6 * 1000); // kW: Q[m³/s]×ρg×H / η
 
@@ -610,13 +625,16 @@ function calculateSystem(inp) {
 
   // Status lights
   const sHydraulik  = transmissiv > 1e-3 ? 'green' : transmissiv > 1e-4 ? 'yellow' : 'red'; // VDI 4640: T > 1e-3 m²/s
-  const sThermik    = deltaT > 0 && qThPerDoublet >= zielLeistung / anzahlDoubletten * 0.95 ? 'green' : 'yellow';
+  // Thermik-Ampel: prüft ob gelieferte Leistung die Zielleistung erreicht (inkl. WP-Beitrag)
+  const sThermik    = deltaT <= 0 ? 'red'
+    : qDelivered >= zielLeistung * 0.99 ? 'green'
+    : qDelivered >= zielLeistung * 0.80 ? 'yellow' : 'red';
   const sDurchbruch = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
   const sCOP        = cop > 3 ? 'green' : cop > 2 ? 'yellow' : 'red';
   const sMaterial   = materialColor;
 
   return {
-    transmissiv, deltaT, qThPerDoublet, qThGesamt,
+    transmissiv, deltaT, qThPerDoublet, qThGesamt, qDelivered, qGeoBenoetigt,
     anzahlDoubletten, gesamtFoerderrate, tauchpumpenLeistung,
     tBreak, spezLeistung, abstandOpt,
     cop, elLeistungWP,
@@ -771,11 +789,13 @@ function KpiTile({ label, value, unit, color = 'gray', warn = null, sub = null }
 /* ═══════════════════════════════════════════════
    BAR CHART
 ═══════════════════════════════════════════════ */
-function BarChart({ qthSingle, qthTotal, zielLeistung }) {
-  const maxVal = Math.max(zielLeistung * 1.15, qthTotal * 1.05, 1);
-  const pctSingle = Math.min(100, (qthSingle / maxVal) * 100);
-  const pctTotal  = Math.min(100, (qthTotal  / maxVal) * 100);
-  const pctTarget = Math.min(100, (zielLeistung / maxVal) * 100);
+function BarChart({ qthSingle, qthTotal, qDelivered, zielLeistung }) {
+  const showDelivered = Math.abs(qDelivered - qthTotal) > 1; // nur zeigen wenn WP aktiv
+  const maxVal = Math.max(zielLeistung * 1.15, (showDelivered ? qDelivered : qthTotal) * 1.05, 1);
+  const pctSingle    = Math.min(100, (qthSingle    / maxVal) * 100);
+  const pctTotal     = Math.min(100, (qthTotal     / maxVal) * 100);
+  const pctDelivered = Math.min(100, (qDelivered   / maxVal) * 100);
+  const pctTarget    = Math.min(100, (zielLeistung / maxVal) * 100);
 
   return (
     <div className="bar-chart-card">
@@ -791,7 +811,7 @@ function BarChart({ qthSingle, qthTotal, zielLeistung }) {
       </div>
       <div className="bar-row">
         <div className="bar-label">
-          <span>1 Doublette</span>
+          <span>1 Doublette (Q<sub>geo</sub>)</span>
           <strong>{fmt(qthSingle, 1)} kW</strong>
         </div>
         <div className="bar-track">
@@ -800,13 +820,24 @@ function BarChart({ qthSingle, qthTotal, zielLeistung }) {
       </div>
       <div className="bar-row">
         <div className="bar-label">
-          <span>Gesamt (alle Doubletten)</span>
+          <span>Geothermie gesamt (Q<sub>geo</sub>)</span>
           <strong>{fmt(qthTotal, 1)} kW</strong>
         </div>
         <div className="bar-track">
-          <div className="bar-fill" style={{ width: pctTotal + '%', background: '#16a34a' }}/>
+          <div className="bar-fill" style={{ width: pctTotal + '%', background: '#1a5276' }}/>
         </div>
       </div>
+      {showDelivered && (
+        <div className="bar-row">
+          <div className="bar-label">
+            <span>Geliefert (Q<sub>geo</sub> + W<sub>el</sub>)</span>
+            <strong>{fmt(qDelivered, 1)} kW</strong>
+          </div>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ width: pctDelivered + '%', background: '#16a34a' }}/>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -819,7 +850,7 @@ function StatusBar({ outputs, inputs }) {
   const [showImpressum, setShowImpressum] = useState(false);
   const items = [
     { label: 'Hydraulik', detail: `k_f = ${inputs.kf.toExponential(1)} m/s`, status: outputs.sHydraulik },
-    { label: 'Thermik',   detail: `ΔT = ${fmt(outputs.deltaT,1)} K`, status: outputs.sThermik },
+    { label: 'Thermik',   detail: `${fmt(outputs.qDelivered,0)} / ${fmt(inputs.zielLeistung,0)} kW`, status: outputs.sThermik },
     { label: 'Durchbruchszeit', detail: `${fmt(outputs.tBreak,1)} Jahre`, status: outputs.sDurchbruch },
     { label: 'WP-Effizienz', detail: `COP = ${outputs.cop > 90 ? '∞' : fmt(outputs.cop,2)}`, status: outputs.sCOP },
     { label: 'Materialklasse', detail: inputs.tds < 1000 ? 'Edelstahl' : inputs.tds < 10000 ? 'Duplex' : 'Titan/Hastelloy', status: outputs.sMaterial },
@@ -1230,7 +1261,7 @@ function InputColumn({ inputs, setInput, outputs }) {
    PRIMARY COLUMN
 ═══════════════════════════════════════════════ */
 function PrimaryColumn({ inputs, outputs }) {
-  const { tBreak, deltaT, qThPerDoublet, qThGesamt, anzahlDoubletten,
+  const { tBreak, deltaT, qThPerDoublet, qThGesamt, qDelivered, anzahlDoubletten,
           gesamtFoerderrate, tauchpumpenLeistung, spezLeistung, abstandOpt } = outputs;
 
   const breakColor = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
@@ -1246,7 +1277,7 @@ function PrimaryColumn({ inputs, outputs }) {
         </div>
       </div>
 
-      <BarChart qthSingle={qThPerDoublet} qthTotal={qThGesamt} zielLeistung={inputs.zielLeistung} />
+      <BarChart qthSingle={qThPerDoublet} qthTotal={qThGesamt} qDelivered={qDelivered} zielLeistung={inputs.zielLeistung} />
 
       {/* KPI grid: top 4 */}
       <div className="kpi-grid" style={{ marginBottom: 8 }}>
@@ -1278,7 +1309,8 @@ function PrimaryColumn({ inputs, outputs }) {
         <div className="section-title">📊 Kennzahlen Gesamt</div>
         <div className="section-body">
           {[
-            ['Gesamt-Wärmeleistung', fmt(qThGesamt,1), 'kW'],
+            ['Gesamt-Wärmeleistung (Geo)', fmt(qThGesamt,1), 'kW'],
+            ...(Math.abs(qDelivered - qThGesamt) > 1 ? [['Geliefert (inkl. WP)', fmt(qDelivered,1), 'kW']] : []),
             ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
             ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
             ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
@@ -1489,8 +1521,8 @@ function Topbar({ showLeft, setShowLeft, showRight, setShowRight, onPrint }) {
 const COOKIE_KEY    = 'deltat_cookie_consent';
 const STORAGE_KEY   = 'deltat_inputs';
 const DEFAULT_INPUTS = {
-  tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 16, tds: 500,
-  Q: 15, tR: 12, abstand: 100,
+  tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 25, tds: 500,
+  Q: 15, tR: 12, abstand: 500,
   zielLeistung: 5000, tVL: 90, tRL: 55,
 };
 
