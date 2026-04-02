@@ -71,7 +71,7 @@
     ═══════════════════════════════════════════════ */
     #app-shell {
       display: flex; flex-direction: row;
-      height: calc(100vh - 52px - 44px);
+      height: calc(100vh - 52px - 44px - 34px);
       margin-top: 52px;
       overflow: hidden;
     }
@@ -227,17 +227,39 @@
     /* ═══════════════════════════════════════════════
        KPI TILES
     ═══════════════════════════════════════════════ */
-    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
     .kpi-tile {
-      border-radius: 9px; padding: 10px 12px;
+      border-radius: 8px; padding: 7px 10px;
       border: 1px solid transparent;
       position: relative;
     }
-    .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; }
-    .kpi-value { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 2px; }
-    .kpi-unit  { font-size: 10px; opacity: 0.7; }
-    .kpi-warn  { position: absolute; top: 7px; right: 8px; font-size: 13px; }
-    .kpi-sub   { font-size: 10px; margin-top: 3px; opacity: 0.65; }
+    .kpi-label { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.7; margin-bottom: 3px; }
+    .kpi-value { font-size: 18px; font-weight: 800; line-height: 1; margin-bottom: 1px; }
+    .kpi-unit  { font-size: 9px; opacity: 0.7; }
+    .kpi-warn  { position: absolute; top: 5px; right: 6px; font-size: 12px; }
+    .kpi-sub   { font-size: 9px; margin-top: 2px; opacity: 0.65; }
+    /* collapsible details */
+    .details-toggle { width:100%; background:none; border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--text-muted); text-align:left; padding:6px 2px; display:flex; align-items:center; gap:6px; }
+    .details-toggle:hover { color:var(--navy); }
+    /* recommendation bar */
+    #rec-bar {
+      position: fixed; bottom: 44px; left: 0; right: 0; z-index: 998;
+      background: #0f2642; border-top: 1px solid rgba(255,255,255,0.08);
+      min-height: 34px; display: flex; align-items: center;
+      padding: 0 14px; gap: 8px; flex-wrap: wrap;
+    }
+    .rec-bar-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+    .rec-bar-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink:0; }
+    .rec-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-shrink:0; }
+    .rec-item-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink:0; }
+    .rec-item-text { font-size: 11px; color: rgba(255,255,255,0.8); }
+    .rec-fix-btn {
+      font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08);
+      color: #fff; cursor: pointer; white-space: nowrap;
+    }
+    .rec-fix-btn:hover { background: rgba(255,255,255,0.18); }
+    .rec-all-ok { font-size: 11px; color: #4ade80; font-weight: 600; }
 
     .kpi-blue   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
     .kpi-navy   { background: #e0e9f5; color: var(--navy); border-color: #c7d8ef; }
@@ -628,6 +650,7 @@ function calculateSystem(inp) {
     material, materialColor, scaling, scalingColor,
     dT1, dT2,
     jahreswaerme,
+    tHub,
     sHydraulik, sThermik, sDurchbruch, sCOP, sMaterial,
   };
 }
@@ -1241,6 +1264,7 @@ function PrimaryColumn({ inputs, outputs }) {
   const { tBreak, deltaT, qThPerDoublet, qThGesamt, anzahlDoubletten,
           gesamtFoerderrate, tauchpumpenLeistung, spezLeistung, abstandOpt,
           jahreswaerme } = outputs;
+  const [showDetails, setShowDetails] = useState(false);
 
   const breakColor = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
   const breakWarn  = tBreak > 25 ? null : tBreak > 15 ? '⚠' : '🔴';
@@ -1257,57 +1281,59 @@ function PrimaryColumn({ inputs, outputs }) {
 
       <BarChart qthSingle={qThPerDoublet} qthTotal={qThGesamt} zielLeistung={inputs.zielLeistung} />
 
-      {/* KPI grid: top 4 */}
-      <div className="kpi-grid" style={{ marginBottom: 8 }}>
-        <KpiTile label="Temperatur-Hub ΔT" value={fmt(deltaT,1)} unit="K"
-          color={deltaT > 0 ? 'hot' : 'red'}
-          sub={`${inputs.tGW}°C − ${inputs.tR}°C`} />
-        <KpiTile label="Thermische Leistung" value={fmt(qThPerDoublet,1)} unit="kW"
-          color="cold" sub="pro Doublette" />
-        <KpiTile label="Doubletten benötigt" value={anzahlDoubletten > 50 ? '>50' : anzahlDoubletten} unit="Stk."
-          color={anzahlDoubletten <= 3 ? 'green' : anzahlDoubletten <= 10 ? 'navy' : 'yellow'} />
-        <KpiTile label="Gesamtförderrate" value={fmt(gesamtFoerderrate,1)} unit="l/s"
-          color="blue" />
-        <KpiTile label="Jahreswärmemenge" value={fmt(jahreswaerme,0)} unit="MWh/a"
-          color="green" sub={`bei ${inputs.laufstunden} h/a`} />
+      {/* Kompakte 3-spaltige KPI-Chips – Zeile 1: Thermik */}
+      <div className="kpi-grid">
+        <KpiTile label="ΔT nutzbar" value={fmt(deltaT,1)} unit="K"
+          color={deltaT > 0 ? 'hot' : 'red'} sub={`${inputs.tGW}°C − ${inputs.tR}°C`} />
+        <KpiTile label="Leistung/Doublette" value={fmt(qThPerDoublet,1)} unit="kW"
+          color="cold" sub="therm." />
+        <KpiTile label="Jahreswärme" value={fmt(jahreswaerme,0)} unit="MWh/a"
+          color="green" sub={`${inputs.laufstunden} h/a`} />
       </div>
 
-      {/* KPI grid: bottom 4 */}
+      {/* Zeile 2: Auslegung */}
       <div className="kpi-grid">
-        <KpiTile label="Tauchpumpen-Leistung" value={fmt(tauchpumpenLeistung,1)} unit="kW"
-          color="gray" sub="Schätzung" />
+        <KpiTile label="Doubletten" value={anzahlDoubletten > 50 ? '>50' : anzahlDoubletten} unit="Stk."
+          color={anzahlDoubletten <= 3 ? 'green' : anzahlDoubletten <= 10 ? 'navy' : 'yellow'} />
+        <KpiTile label="Förderrate ges." value={fmt(gesamtFoerderrate,1)} unit="l/s"
+          color="blue" />
+        <KpiTile label="Pumpenleistung" value={fmt(tauchpumpenLeistung,1)} unit="kW"
+          color="gray" sub="je Doublette" />
+      </div>
+
+      {/* Zeile 3: Geo-Kennwerte */}
+      <div className="kpi-grid">
+        <KpiTile label="Spez. Leistung" value={fmt(spezLeistung,1)} unit="W/m"
+          color="navy" sub="pro Bohrmeter" />
         <KpiTile label="Durchbruchszeit" value={fmt(tBreak,1)} unit="Jahre"
           color={breakColor} warn={breakWarn} />
-        <KpiTile label="Spez. Wärmeleistung" value={fmt(spezLeistung,1)} unit="W/m"
-          color="navy" sub="pro Bohrmeter" />
-        <KpiTile label="Opt. Bohrloch-Abstand" value={fmt(abstandOpt,0)} unit="m"
-          color="blue" sub="für t > 25 J." />
+        <KpiTile label="Opt. Abstand" value={fmt(abstandOpt,0)} unit="m"
+          color="blue" sub="t > 25 J." />
       </div>
 
-      {/* Details card */}
-      <div className="section-card" style={{ marginTop: 10 }}>
-        <div className="section-title">📊 Kennzahlen Gesamt</div>
-        <div className="section-body">
-          {[
-            ['Gesamt-Wärmeleistung', fmt(qThGesamt,1), 'kW'],
-            ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
-            ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
-            ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
-          ].map(([k, v, u]) => (
-            <div key={k} className="rec-row">
-              <span className="rec-key">{k}</span>
-              <span className="rec-val">{v} {u}</span>
-            </div>
-          ))}
-          {tBreak < 25 && (
-            <div style={{ marginTop: 8, padding: '6px 8px', background: tBreak < 15 ? '#fee2e2' : '#fef3c7', borderRadius: 6, fontSize: 11, color: tBreak < 15 ? '#991b1b' : '#92400e' }}>
-              {tBreak < 15
-                ? `⚠ Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Abstand auf ${fmt(abstandOpt,0)} m erhöhen!`
-                : `ℹ Durchbruch in ${fmt(tBreak,1)} J. – empfohlener Mindestabstand: ${fmt(abstandOpt,0)} m`}
-            </div>
-          )}
+      {/* Ausklappbare Detailtabelle */}
+      <button className="details-toggle" onClick={() => setShowDetails(s => !s)}>
+        <span style={{transition:'transform 0.2s', display:'inline-block', transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)'}}>▶</span>
+        {showDetails ? 'Kennzahlen ausblenden' : '📊 Kennzahlen Gesamt anzeigen'}
+      </button>
+      {showDetails && (
+        <div className="section-card" style={{ marginTop: 4 }}>
+          <div className="section-body">
+            {[
+              ['Gesamt-Wärmeleistung', fmt(qThGesamt,1), 'kW'],
+              ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
+              ['Jahreswärmemenge', fmt(jahreswaerme,0), 'MWh/a'],
+              ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
+              ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
+            ].map(([k, v, u]) => (
+              <div key={k} className="rec-row">
+                <span className="rec-key">{k}</span>
+                <span className="rec-val">{v} {u}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1531,6 +1557,65 @@ function CookieBanner({ onAccept, onDecline, onShowImpressum }) {
 }
 
 /* ═══════════════════════════════════════════════
+   RECOMMENDATION BAR
+═══════════════════════════════════════════════ */
+function RecommendationBar({ outputs, setInput }) {
+  const { sHydraulik, sDurchbruch, sCOP, tBreak, abstandOpt,
+          transmissiv, deltaT, cop, tHub, wpColor } = outputs;
+
+  // Build prioritised list of recommendations (red first, then yellow)
+  const recs = [];
+
+  if (sHydraulik === 'red') {
+    recs.push({ color: '#ef4444', text: `Transmissivität zu gering für wirtschaftlichen Betrieb (T = ${transmissiv.toExponential(1)} m²/s)`, fix: null });
+  } else if (sHydraulik === 'yellow') {
+    recs.push({ color: '#facc15', text: `Transmissivität grenzwertig (T = ${transmissiv.toExponential(1)} m²/s) – Aquifer-Qualität prüfen`, fix: null });
+  }
+
+  if (sDurchbruch === 'red') {
+    recs.push({ color: '#ef4444', text: `Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Mindestabstand: ${fmt(abstandOpt,0)} m`,
+      fix: { label: `Abstand auf ${fmt(abstandOpt,0)} m setzen`, action: () => setInput('abstand', Math.ceil(abstandOpt)) } });
+  } else if (sDurchbruch === 'yellow') {
+    recs.push({ color: '#facc15', text: `Durchbruchszeit knapp (${fmt(tBreak,1)} J.) – empfohlener Abstand: ${fmt(abstandOpt,0)} m`,
+      fix: { label: `Abstand optimieren`, action: () => setInput('abstand', Math.ceil(abstandOpt)) } });
+  }
+
+  if (deltaT <= 0) {
+    recs.push({ color: '#ef4444', text: 'ΔT ≤ 0 K: Reinjektionstemperatur höher als Grundwassertemperatur – keine Wärmeentnahme möglich', fix: null });
+  }
+
+  if (sCOP === 'red') {
+    recs.push({ color: '#ef4444', text: `COP zu niedrig (${fmt(cop,2)}) – Wirtschaftlichkeit der Wärmepumpe prüfen`, fix: null });
+  } else if (sCOP === 'yellow') {
+    recs.push({ color: '#facc15', text: `COP grenzwertig (${fmt(cop,2)}) – Vorlauftemperatur ggf. reduzieren`, fix: null });
+  }
+
+  if (wpColor === 'red') {
+    recs.push({ color: '#fb923c', text: `Hub ${fmt(tHub,0)} K: Industrielle HT-WP oder ORC-Prozess – Projekt-Engineering erforderlich`, fix: null });
+  }
+
+  return (
+    <div id="rec-bar">
+      <span className="rec-bar-label">Empfehlung</span>
+      <div className="rec-bar-sep"/>
+      {recs.length === 0
+        ? <span className="rec-all-ok">✓ Alle Parameter im grünen Bereich – Auslegung plausibel</span>
+        : recs.slice(0,3).map((r, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <div className="rec-bar-sep"/>}
+              <div className="rec-item">
+                <div className="rec-item-dot" style={{ background: r.color, boxShadow: `0 0 5px ${r.color}` }}/>
+                <span className="rec-item-text">{r.text}</span>
+                {r.fix && <button className="rec-fix-btn" onClick={r.fix.action}>{r.fix.label}</button>}
+              </div>
+            </React.Fragment>
+          ))
+      }
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
    APP ROOT
 ═══════════════════════════════════════════════ */
 function App() {
@@ -1642,6 +1727,7 @@ function App() {
           onShowImpressum={() => setShowImpressum(true)}
         />
       )}
+      <RecommendationBar outputs={outputs} setInput={setInput} />
       <StatusBar outputs={outputs} inputs={inputs} />
       {showImpressum && <ImpressumModal onClose={() => setShowImpressum(false)}/>}
     </>
