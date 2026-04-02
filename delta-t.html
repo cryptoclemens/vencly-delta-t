@@ -514,9 +514,75 @@
        RESPONSIVE
     ═══════════════════════════════════════════════ */
     @media (max-width: 900px) {
-      #calc-grid { grid-template-columns: 1fr; overflow-y: auto; }
-      .calc-col { border-right: none; border-bottom: 1px solid var(--border); }
+      /* 1. Unlock full-page scroll */
+      html, body {
+        height: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      /* Reserve space for fixed status bar at bottom */
+      body { padding-bottom: 44px; }
+
+      /* 2. Topbar: stay fixed, hide buttons that open hidden panels */
+      .tb-right { display: none; }
+      #version-badge { display: none; }
+
+      /* 3. App shell: drop fixed height, allow natural flow */
+      #app-shell {
+        height: auto;
+        overflow: visible;
+        flex-direction: column;
+      }
+
+      /* 4. Hide side panels (no room on mobile) */
       #left-panel, #right-panel { display: none; }
+
+      /* 5. Calc area: stretch full width, no overflow clip */
+      #calc-area {
+        overflow: visible;
+        flex: none;
+        width: 100%;
+      }
+
+      /* 6. Grid: single column, unconstrained height */
+      #calc-grid {
+        grid-template-columns: 1fr;
+        overflow: visible;
+        height: auto;
+      }
+
+      /* 7. Columns: full natural height, stacked */
+      .calc-col {
+        overflow: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        height: auto;
+        max-height: none;
+      }
+      .calc-col:last-child { border-bottom: none; }
+
+      /* 8. Recommendation bar: hidden on mobile (status bar already shows traffic lights) */
+      #rec-bar { display: none; }
+
+      /* 9. Cookie banner: sit above status bar */
+      #cookie-banner { bottom: 44px; }
+
+      /* 10. KPI grid: 2 columns (3 is too tight on narrow screens) */
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+
+      /* 11. Info popups: constrain width to screen */
+      .info-popup { width: min(270px, 85vw); }
+
+      /* 12. Topbar title: slightly smaller to fit */
+      .tb-title { font-size: 13px; }
+      .tb-subtitle { font-size: 10px; }
+    }
+
+    /* Very narrow phones (< 480px) */
+    @media (max-width: 480px) {
+      .tb-subtitle { display: none; }
+      .col-header-sub { display: none; }
+      .kpi-value { font-size: 15px; }
     }
 
     /* scrollbars global */
