@@ -714,7 +714,7 @@ function InfoPopup({ content }) {
 /* ═══════════════════════════════════════════════
    PARAM SLIDER COMPONENT
 ═══════════════════════════════════════════════ */
-function ParamSlider({ label, unit, value, onChange, min, max, step = 1, tooltip = '', logScale = false, info = null }) {
+function ParamSlider({ label, unit, value, onChange, min, max, step = 1, tooltip = '', logScale = false, info = null, freeInput = false }) {
   const [text, setText] = useState('');
 
   const toSlider = v => logScale
@@ -737,12 +737,21 @@ function ParamSlider({ label, unit, value, onChange, min, max, step = 1, tooltip
   const handleText = e => {
     setText(e.target.value);
     const v = parseFloat(e.target.value);
-    if (!isNaN(v) && v >= min && v <= max) onChange(v);
+    if (!isNaN(v)) {
+      if (freeInput) {
+        // Freie Eingabe: nur physikalisch sinnvolle Untergrenze (> 0 für Temperaturen)
+        if (v > 0) onChange(v);
+      } else {
+        if (v >= min && v <= max) onChange(v);
+      }
+    }
   };
 
   const handleBlur = () => setText(displayVal);
 
-  const pct = toSlider(value);
+  const pct = freeInput
+    ? Math.max(0, Math.min(100, toSlider(Math.max(min, Math.min(max, value)))))
+    : toSlider(value);
   const sliderStyle = { '--pct': pct + '%' };
 
   return (
@@ -1243,11 +1252,11 @@ function InputColumn({ inputs, setInput, outputs }) {
             value={zielLeistung} onChange={v => setInput('zielLeistung', Math.round(v / 50) * 50)}
             tooltip="Gesamte geforderte thermische Leistung des Geothermiesystems"
             info={<><strong>Was ist das?</strong>Geforderte thermische Gesamtleistung, die das geothermische System liefern soll (Wärmenetz oder Gebäudeversorgung).<strong>Einfluss auf andere Werte</strong>Bestimmt die Anzahl der benötigten Dubletten: n = ⌈Q<sub>Ziel</sub> / Q<sub>th,Dublette</sub>⌉.<br/>↑ Zielleistung → mehr Bohrungen, höhere Gesamtförderrate, mehr Platzbedarf.<strong>Orientierungswerte</strong><em>Einfamilienhaus: 10–20 kW · Wohnblock: 100–500 kW · Kleines Wärmenetz: 1–5 MW · Stadtquartier: &gt;5 MW</em></>} />
-          <ParamSlider label="Vorlauf Fernwärme T<sub>VL</sub>" unit="°C" min={50} max={120} step={1}
+          <ParamSlider label="Vorlauf Fernwärme T<sub>VL</sub>" unit="°C" min={30} max={150} step={1} freeInput
             value={tVL} onChange={v => setInput('tVL', Math.round(v))}
             tooltip="Vorlauftemperatur des Fernwärmenetzes oder Gebäudeheizung"
             info={<><strong>Was ist das?</strong>Vorlauftemperatur des Wärmenetzes oder der Gebäudeheizung – die Temperatur, auf die das Wasser erwärmt werden muss.<strong>Einfluss auf andere Werte</strong>↓ T<sub>VL</sub> → besserer COP (Carnot × 50% steigt stark).<br/>Direktnutzung nur wenn T<sub>GW</sub> ≥ T<sub>VL</sub> – sonst Wärmepumpe nötig.<br/>Beeinflusst LMTD und damit die Wärmetauscherfläche.<strong>Moderne Netze</strong><em>Altbau-Heizkörper: 70–90 °C · Sanierter Bestand: 55–70 °C · Fußbodenheizung / Niedertemp.: 35–55 °C</em></>} />
-          <ParamSlider label="Rücklauf Fernwärme T<sub>RL</sub>" unit="°C" min={30} max={70} step={1}
+          <ParamSlider label="Rücklauf Fernwärme T<sub>RL</sub>" unit="°C" min={10} max={90} step={1} freeInput
             value={tRL} onChange={v => setInput('tRL', Math.round(v))}
             tooltip="Rücklauftemperatur des Wärmenetzes"
             info={<><strong>Was ist das?</strong>Rücklauftemperatur des Wärmenetzes – Temperatur des zurückfließenden Wassers nach der Wärmeabgabe im Gebäude.<strong>Einfluss auf andere Werte</strong>Beeinflusst LMTD (logarithmische Temperaturdifferenz) im Wärmetauscher → Wärmetauscherfläche.<br/>↓ T<sub>RL</sub> → bessere Wärmeausnutzung, aber größerer Wärmetauscher nötig.<br/>Spreizung T<sub>VL</sub> − T<sub>RL</sub> sollte ≥ 20 K sein für effizienten Betrieb.<strong>Typische Werte</strong><em>Fernwärme: 50–65 °C · Niedertemperatur-Netz: 30–45 °C</em></>} />
