@@ -71,7 +71,7 @@
     ═══════════════════════════════════════════════ */
     #app-shell {
       display: flex; flex-direction: row;
-      height: calc(100vh - 52px - 44px);
+      height: calc(100vh - 52px - 44px - 34px);
       margin-top: 52px;
       overflow: hidden;
     }
@@ -227,17 +227,39 @@
     /* ═══════════════════════════════════════════════
        KPI TILES
     ═══════════════════════════════════════════════ */
-    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
     .kpi-tile {
-      border-radius: 9px; padding: 10px 12px;
+      border-radius: 8px; padding: 7px 10px;
       border: 1px solid transparent;
       position: relative;
     }
-    .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; }
-    .kpi-value { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 2px; }
-    .kpi-unit  { font-size: 10px; opacity: 0.7; }
-    .kpi-warn  { position: absolute; top: 7px; right: 8px; font-size: 13px; }
-    .kpi-sub   { font-size: 10px; margin-top: 3px; opacity: 0.65; }
+    .kpi-label { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.7; margin-bottom: 3px; }
+    .kpi-value { font-size: 18px; font-weight: 800; line-height: 1; margin-bottom: 1px; }
+    .kpi-unit  { font-size: 9px; opacity: 0.7; }
+    .kpi-warn  { position: absolute; top: 5px; right: 6px; font-size: 12px; }
+    .kpi-sub   { font-size: 9px; margin-top: 2px; opacity: 0.65; }
+    /* collapsible details */
+    .details-toggle { width:100%; background:none; border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--text-muted); text-align:left; padding:6px 2px; display:flex; align-items:center; gap:6px; }
+    .details-toggle:hover { color:var(--navy); }
+    /* recommendation bar */
+    #rec-bar {
+      position: fixed; bottom: 44px; left: 0; right: 0; z-index: 998;
+      background: #0f2642; border-top: 1px solid rgba(255,255,255,0.08);
+      min-height: 34px; display: flex; align-items: center;
+      padding: 0 14px; gap: 8px; flex-wrap: wrap;
+    }
+    .rec-bar-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+    .rec-bar-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink:0; }
+    .rec-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-shrink:0; }
+    .rec-item-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink:0; }
+    .rec-item-text { font-size: 11px; color: rgba(255,255,255,0.8); }
+    .rec-fix-btn {
+      font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08);
+      color: #fff; cursor: pointer; white-space: nowrap;
+    }
+    .rec-fix-btn:hover { background: rgba(255,255,255,0.18); }
+    .rec-all-ok { font-size: 11px; color: #4ade80; font-weight: 600; }
 
     .kpi-blue   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
     .kpi-navy   { background: #e0e9f5; color: var(--navy); border-color: #c7d8ef; }
@@ -492,9 +514,75 @@
        RESPONSIVE
     ═══════════════════════════════════════════════ */
     @media (max-width: 900px) {
-      #calc-grid { grid-template-columns: 1fr; overflow-y: auto; }
-      .calc-col { border-right: none; border-bottom: 1px solid var(--border); }
+      /* 1. Unlock full-page scroll */
+      html, body {
+        height: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      /* Reserve space for fixed status bar at bottom */
+      body { padding-bottom: 44px; }
+
+      /* 2. Topbar: stay fixed, hide buttons that open hidden panels */
+      .tb-right { display: none; }
+      #version-badge { display: none; }
+
+      /* 3. App shell: drop fixed height, allow natural flow */
+      #app-shell {
+        height: auto;
+        overflow: visible;
+        flex-direction: column;
+      }
+
+      /* 4. Hide side panels (no room on mobile) */
       #left-panel, #right-panel { display: none; }
+
+      /* 5. Calc area: stretch full width, no overflow clip */
+      #calc-area {
+        overflow: visible;
+        flex: none;
+        width: 100%;
+      }
+
+      /* 6. Grid: single column, unconstrained height */
+      #calc-grid {
+        grid-template-columns: 1fr;
+        overflow: visible;
+        height: auto;
+      }
+
+      /* 7. Columns: full natural height, stacked */
+      .calc-col {
+        overflow: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        height: auto;
+        max-height: none;
+      }
+      .calc-col:last-child { border-bottom: none; }
+
+      /* 8. Recommendation bar: hidden on mobile (status bar already shows traffic lights) */
+      #rec-bar { display: none; }
+
+      /* 9. Cookie banner: sit above status bar */
+      #cookie-banner { bottom: 44px; }
+
+      /* 10. KPI grid: 2 columns (3 is too tight on narrow screens) */
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+
+      /* 11. Info popups: constrain width to screen */
+      .info-popup { width: min(270px, 85vw); }
+
+      /* 12. Topbar title: slightly smaller to fit */
+      .tb-title { font-size: 13px; }
+      .tb-subtitle { font-size: 10px; }
+    }
+
+    /* Very narrow phones (< 480px) */
+    @media (max-width: 480px) {
+      .tb-subtitle { display: none; }
+      .col-header-sub { display: none; }
+      .kpi-value { font-size: 15px; }
     }
 
     /* scrollbars global */
@@ -536,7 +624,7 @@ async function saveFeedback(payload) {
    CALCULATION ENGINE
 ═══════════════════════════════════════════════ */
 function calculateSystem(inp) {
-  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL } = inp;
+  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL, laufstunden } = inp;
 
   const transmissiv = kf * maechtig;
   const deltaT = tGW - tR;
@@ -633,6 +721,9 @@ function calculateSystem(inp) {
   const sCOP        = cop > 3 ? 'green' : cop > 2 ? 'yellow' : 'red';
   const sMaterial   = materialColor;
 
+  // Jahreswärmemenge [MWh/a] = Gesamtleistung [kW] × Laufstunden [h/a] / 1000
+  const jahreswaerme = qThGesamt * (laufstunden || 2000) / 1000;
+
   return {
     transmissiv, deltaT, qThPerDoublet, qThGesamt, qDelivered, qGeoBenoetigt,
     anzahlDoubletten, gesamtFoerderrate, tauchpumpenLeistung,
@@ -642,6 +733,8 @@ function calculateSystem(inp) {
     wpType, wpColor, wpModel,
     material, materialColor, scaling, scalingColor,
     dT1, dT2,
+    jahreswaerme,
+    tHub,
     sHydraulik, sThermik, sDurchbruch, sCOP, sMaterial,
   };
 }
@@ -1177,7 +1270,7 @@ function FeedbackPanel({ addLog, inputs }) {
    INPUT COLUMN
 ═══════════════════════════════════════════════ */
 function InputColumn({ inputs, setInput, outputs }) {
-  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL } = inputs;
+  const { tiefe, maechtig, kf, tGW, tds, Q, tR, abstand, zielLeistung, tVL, tRL, laufstunden } = inputs;
   return (
     <div className="calc-col">
       <div className="col-header">
@@ -1260,6 +1353,10 @@ function InputColumn({ inputs, setInput, outputs }) {
             value={tRL} onChange={v => setInput('tRL', Math.round(v))}
             tooltip="Rücklauftemperatur des Wärmenetzes"
             info={<><strong>Was ist das?</strong>Rücklauftemperatur des Wärmenetzes – Temperatur des zurückfließenden Wassers nach der Wärmeabgabe im Gebäude.<strong>Einfluss auf andere Werte</strong>Beeinflusst LMTD (logarithmische Temperaturdifferenz) im Wärmetauscher → Wärmetauscherfläche.<br/>↓ T<sub>RL</sub> → bessere Wärmeausnutzung, aber größerer Wärmetauscher nötig.<br/>Spreizung T<sub>VL</sub> − T<sub>RL</sub> sollte ≥ 20 K sein für effizienten Betrieb.<strong>Typische Werte</strong><em>Fernwärme: 50–65 °C · Niedertemperatur-Netz: 30–45 °C</em></>} />
+          <ParamSlider label="Laufstunden" unit="h/a" min={500} max={8760} step={100}
+            value={inputs.laufstunden} onChange={v => setInput('laufstunden', Math.round(v))}
+            tooltip="Betriebsstunden der Anlage pro Jahr"
+            info={<><strong>Was ist das?</strong>Volllaststunden der Geothermieanlage pro Jahr. Zusammen mit der thermischen Gesamtleistung ergibt sich die Jahreswärmemenge in MWh/a.<strong>Einfluss auf andere Werte</strong>E<sub>a</sub> [MWh/a] = Q<sub>ges</sub> [kW] × Laufstunden / 1000.<br/>↑ Laufstunden → höhere Jahreswärmemenge, aber höherer Pumpenverschleiß.<strong>Richtwerte</strong><em>Grundlast-Geothermie: 6 000–8 000 h/a · Spitzenlast: 1 000–3 000 h/a · Volllast-Maximum: 8 760 h/a</em></>} />
         </div>
       </div>
     </div>
@@ -1271,7 +1368,9 @@ function InputColumn({ inputs, setInput, outputs }) {
 ═══════════════════════════════════════════════ */
 function PrimaryColumn({ inputs, outputs }) {
   const { tBreak, deltaT, qThPerDoublet, qThGesamt, qDelivered, anzahlDoubletten,
-          gesamtFoerderrate, tauchpumpenLeistung, spezLeistung, abstandOpt } = outputs;
+          gesamtFoerderrate, tauchpumpenLeistung, spezLeistung, abstandOpt,
+          jahreswaerme } = outputs;
+  const [showDetails, setShowDetails] = useState(false);
 
   const breakColor = tBreak > 25 ? 'green' : tBreak > 15 ? 'yellow' : 'red';
   const breakWarn  = tBreak > 25 ? null : tBreak > 15 ? '⚠' : '🔴';
@@ -1288,56 +1387,67 @@ function PrimaryColumn({ inputs, outputs }) {
 
       <BarChart qthSingle={qThPerDoublet} qthTotal={qThGesamt} qDelivered={qDelivered} zielLeistung={inputs.zielLeistung} />
 
-      {/* KPI grid: top 4 */}
-      <div className="kpi-grid" style={{ marginBottom: 8 }}>
-        <KpiTile label="Temperatur-Hub ΔT" value={fmt(deltaT,1)} unit="K"
-          color={deltaT > 0 ? 'hot' : 'red'}
-          sub={`${inputs.tGW}°C − ${inputs.tR}°C`} />
-        <KpiTile label="Thermische Leistung" value={fmt(qThPerDoublet,1)} unit="kW"
-          color="cold" sub="pro Doublette" />
-        <KpiTile label="Doubletten benötigt" value={anzahlDoubletten > 50 ? '>50' : anzahlDoubletten} unit="Stk."
-          color={anzahlDoubletten <= 3 ? 'green' : anzahlDoubletten <= 10 ? 'navy' : 'yellow'} />
-        <KpiTile label="Gesamtförderrate" value={fmt(gesamtFoerderrate,1)} unit="l/s"
-          color="blue" />
+      {/* Kompakte 3-spaltige KPI-Chips – Zeile 1: Thermik */}
+      <div className="kpi-grid">
+        <KpiTile label="ΔT nutzbar" value={fmt(deltaT,1)} unit="K"
+          color={deltaT > 0 ? 'hot' : 'red'} sub={`${inputs.tGW}°C − ${inputs.tR}°C`} />
+        <KpiTile label="Leistung/Doublette" value={fmt(qThPerDoublet,1)} unit="kW"
+          color="cold" sub="therm." />
+        <KpiTile label="Jahreswärme" value={fmt(jahreswaerme,0)} unit="MWh/a"
+          color="green" sub={`${inputs.laufstunden} h/a`} />
       </div>
 
-      {/* KPI grid: bottom 4 */}
+      {/* Zeile 2: Auslegung */}
       <div className="kpi-grid">
-        <KpiTile label="Tauchpumpen-Leistung" value={fmt(tauchpumpenLeistung,1)} unit="kW"
-          color="gray" sub="Schätzung" />
+        <KpiTile label="Doubletten" value={anzahlDoubletten > 50 ? '>50' : anzahlDoubletten} unit="Stk."
+          color={anzahlDoubletten <= 3 ? 'green' : anzahlDoubletten <= 10 ? 'navy' : 'yellow'} />
+        <KpiTile label="Förderrate ges." value={fmt(gesamtFoerderrate,1)} unit="l/s"
+          color="blue" />
+        <KpiTile label="Pumpenleistung" value={fmt(tauchpumpenLeistung,1)} unit="kW"
+          color="gray" sub="je Doublette" />
+      </div>
+
+      {/* Zeile 3: Geo-Kennwerte */}
+      <div className="kpi-grid">
+        <KpiTile label="Spez. Leistung" value={fmt(spezLeistung,1)} unit="W/m"
+          color="navy" sub="pro Bohrmeter" />
         <KpiTile label="Durchbruchszeit" value={fmt(tBreak,1)} unit="Jahre"
           color={breakColor} warn={breakWarn} />
-        <KpiTile label="Spez. Wärmeleistung" value={fmt(spezLeistung,1)} unit="W/m"
-          color="navy" sub="pro Bohrmeter" />
-        <KpiTile label="Opt. Bohrloch-Abstand" value={fmt(abstandOpt,0)} unit="m"
-          color="blue" sub="für t > 25 J." />
+        <KpiTile label="Opt. Abstand" value={fmt(abstandOpt,0)} unit="m"
+          color="blue" sub="t > 25 J." />
       </div>
 
-      {/* Details card */}
-      <div className="section-card" style={{ marginTop: 10 }}>
-        <div className="section-title">📊 Kennzahlen Gesamt</div>
-        <div className="section-body">
-          {[
-            ['Gesamt-Wärmeleistung (Geo)', fmt(qThGesamt,1), 'kW'],
-            ...(Math.abs(qDelivered - qThGesamt) > 1 ? [['Geliefert (inkl. WP)', fmt(qDelivered,1), 'kW']] : []),
-            ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
-            ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
-            ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
-          ].map(([k, v, u]) => (
-            <div key={k} className="rec-row">
-              <span className="rec-key">{k}</span>
-              <span className="rec-val">{v} {u}</span>
-            </div>
-          ))}
-          {tBreak < 25 && (
-            <div style={{ marginTop: 8, padding: '6px 8px', background: tBreak < 15 ? '#fee2e2' : '#fef3c7', borderRadius: 6, fontSize: 11, color: tBreak < 15 ? '#991b1b' : '#92400e' }}>
-              {tBreak < 15
-                ? `⚠ Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Abstand auf ${fmt(abstandOpt,0)} m erhöhen!`
-                : `ℹ Durchbruch in ${fmt(tBreak,1)} J. – empfohlener Mindestabstand: ${fmt(abstandOpt,0)} m`}
-            </div>
-          )}
+      {/* Ausklappbare Detailtabelle */}
+      <button className="details-toggle" onClick={() => setShowDetails(s => !s)}>
+        <span style={{transition:'transform 0.2s', display:'inline-block', transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)'}}>▶</span>
+        {showDetails ? 'Kennzahlen ausblenden' : '📊 Kennzahlen Gesamt anzeigen'}
+      </button>
+      {showDetails && (
+        <div className="section-card" style={{ marginTop: 4 }}>
+          <div className="section-body">
+            {[
+              ['Gesamt-Wärmeleistung (Geo)', fmt(qThGesamt,1), 'kW'],
+              ...(Math.abs(qDelivered - qThGesamt) > 1 ? [['Geliefert (inkl. WP)', fmt(qDelivered,1), 'kW']] : []),
+              ['Gesamt-Förderrate', fmt(gesamtFoerderrate,1), 'l/s'],
+              ['Jahreswärmemenge', fmt(jahreswaerme,0), 'MWh/a'],
+              ['Gesamte Bohrtiefe', fmt(anzahlDoubletten * inputs.tiefe * 2, 0), 'm (Förder+Reinjekt.)'],
+              ['Pump-Eigenverbrauch', fmt(tauchpumpenLeistung * anzahlDoubletten, 1), 'kW (alle Doubletten)'],
+            ].map(([k, v, u]) => (
+              <div key={k} className="rec-row">
+                <span className="rec-key">{k}</span>
+                <span className="rec-val">{v} {u}</span>
+              </div>
+            ))}
+            {tBreak < 25 && (
+              <div style={{ marginTop: 8, padding: '6px 8px', background: tBreak < 15 ? '#fee2e2' : '#fef3c7', borderRadius: 6, fontSize: 11, color: tBreak < 15 ? '#991b1b' : '#92400e' }}>
+                {tBreak < 15
+                  ? `⚠ Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Abstand auf ${fmt(abstandOpt,0)} m erhöhen!`
+                  : `ℹ Durchbruch in ${fmt(tBreak,1)} J. – empfohlener Mindestabstand: ${fmt(abstandOpt,0)} m`}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1532,7 +1642,7 @@ const STORAGE_KEY   = 'deltat_inputs';
 const DEFAULT_INPUTS = {
   tiefe: 500, maechtig: 40, kf: 1e-4, tGW: 25, tds: 500,
   Q: 15, tR: 12, abstand: 500,
-  zielLeistung: 5000, tVL: 90, tRL: 55,
+  zielLeistung: 5000, tVL: 90, tRL: 55, laufstunden: 2000,
 };
 
 function loadSavedInputs() {
@@ -1556,6 +1666,65 @@ function CookieBanner({ onAccept, onDecline, onShowImpressum }) {
       </p>
       <button className="cookie-btn-decline" onClick={onDecline}>Ablehnen</button>
       <button className="cookie-btn-accept"  onClick={onAccept}>Akzeptieren</button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   RECOMMENDATION BAR
+═══════════════════════════════════════════════ */
+function RecommendationBar({ outputs, setInput }) {
+  const { sHydraulik, sDurchbruch, sCOP, tBreak, abstandOpt,
+          transmissiv, deltaT, cop, tHub, wpColor } = outputs;
+
+  // Build prioritised list of recommendations (red first, then yellow)
+  const recs = [];
+
+  if (sHydraulik === 'red') {
+    recs.push({ color: '#ef4444', text: `Transmissivität zu gering für wirtschaftlichen Betrieb (T = ${transmissiv.toExponential(1)} m²/s)`, fix: null });
+  } else if (sHydraulik === 'yellow') {
+    recs.push({ color: '#facc15', text: `Transmissivität grenzwertig (T = ${transmissiv.toExponential(1)} m²/s) – Aquifer-Qualität prüfen`, fix: null });
+  }
+
+  if (sDurchbruch === 'red') {
+    recs.push({ color: '#ef4444', text: `Thermischer Durchbruch in ${fmt(tBreak,1)} J. – Mindestabstand: ${fmt(abstandOpt,0)} m`,
+      fix: { label: `Abstand auf ${fmt(abstandOpt,0)} m setzen`, action: () => setInput('abstand', Math.ceil(abstandOpt)) } });
+  } else if (sDurchbruch === 'yellow') {
+    recs.push({ color: '#facc15', text: `Durchbruchszeit knapp (${fmt(tBreak,1)} J.) – empfohlener Abstand: ${fmt(abstandOpt,0)} m`,
+      fix: { label: `Abstand optimieren`, action: () => setInput('abstand', Math.ceil(abstandOpt)) } });
+  }
+
+  if (deltaT <= 0) {
+    recs.push({ color: '#ef4444', text: 'ΔT ≤ 0 K: Reinjektionstemperatur höher als Grundwassertemperatur – keine Wärmeentnahme möglich', fix: null });
+  }
+
+  if (sCOP === 'red') {
+    recs.push({ color: '#ef4444', text: `COP zu niedrig (${fmt(cop,2)}) – Wirtschaftlichkeit der Wärmepumpe prüfen`, fix: null });
+  } else if (sCOP === 'yellow') {
+    recs.push({ color: '#facc15', text: `COP grenzwertig (${fmt(cop,2)}) – Vorlauftemperatur ggf. reduzieren`, fix: null });
+  }
+
+  if (wpColor === 'red') {
+    recs.push({ color: '#fb923c', text: `Hub ${fmt(tHub,0)} K: Industrielle HT-WP oder ORC-Prozess – Projekt-Engineering erforderlich`, fix: null });
+  }
+
+  return (
+    <div id="rec-bar">
+      <span className="rec-bar-label">Empfehlung</span>
+      <div className="rec-bar-sep"/>
+      {recs.length === 0
+        ? <span className="rec-all-ok">✓ Alle Parameter im grünen Bereich – Auslegung plausibel</span>
+        : recs.slice(0,3).map((r, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <div className="rec-bar-sep"/>}
+              <div className="rec-item">
+                <div className="rec-item-dot" style={{ background: r.color, boxShadow: `0 0 5px ${r.color}` }}/>
+                <span className="rec-item-text">{r.text}</span>
+                {r.fix && <button className="rec-fix-btn" onClick={r.fix.action}>{r.fix.label}</button>}
+              </div>
+            </React.Fragment>
+          ))
+      }
     </div>
   );
 }
@@ -1623,7 +1792,7 @@ function App() {
   useEffect(() => {
     const names = { tiefe:'Reservoirtiefe', maechtig:'Aquifer-Mächtigkeit', kf:'k_f', tGW:'T_GW',
       tds:'TDS', Q:'Förderrate', tR:'T_R', abstand:'Bohrloch-Abstand',
-      zielLeistung:'Zielleistung', tVL:'T_VL', tRL:'T_RL' };
+      zielLeistung:'Zielleistung', tVL:'T_VL', tRL:'T_RL', laufstunden:'Laufstunden' };
     Object.entries(inputs).forEach(([k, v]) => {
       if (lastLogRef.current[k] !== v) {
         const display = k === 'kf' ? v.toExponential(2) : v;
@@ -1672,6 +1841,7 @@ function App() {
           onShowImpressum={() => setShowImpressum(true)}
         />
       )}
+      <RecommendationBar outputs={outputs} setInput={setInput} />
       <StatusBar outputs={outputs} inputs={inputs} />
       {showImpressum && <ImpressumModal onClose={() => setShowImpressum(false)}/>}
     </>
