@@ -6,7 +6,7 @@
 
 ## Zusammenfassung
 
-Der Rechner ist konzeptionell korrekt aufgebaut. Drei kritische Rechenfehler wurden identifiziert und behoben (Q_th ×1000, Tauchpumpe ×82, WP-Elektrik COP/(COP−1)). Mehrere Vereinfachungen sind für eine Vorauslegung akzeptabel, sollten aber bei der Interpretation der Ergebnisse bekannt sein.
+Der Rechner ist konzeptionell korrekt aufgebaut. Drei kritische Rechenfehler wurden in früheren Reviews identifiziert und behoben (Q_th ×1000, Tauchpumpe ×82, WP-Elektrik COP/(COP−1)). Im zweiten Review (März 2026) wurde ein vierter konzeptioneller Fehler behoben: Die Dubletten-Anzahl ignorierte den WP-Beitrag und überdimensionierte das System. Mehrere Vereinfachungen sind für eine Vorauslegung akzeptabel, sollten aber bei der Interpretation der Ergebnisse bekannt sein.
 
 ---
 
@@ -126,17 +126,50 @@ Standarddefinition der hydraulischen Transmissivität für gespannte Aquifere. K
 
 ---
 
-## 9. Hydraulik-Ampel ⚠️ (Schwellwert etwas zu einfach)
+## 9. Hydraulik-Ampel ✅ (korrigiert)
 
-**Code:** `k_f > 5×10⁻⁵ m/s → grün`
+**Code (aktuell):** `Transmissivität T = k_f × Mächtigkeit > 1×10⁻³ m²/s → grün; > 1×10⁻⁴ → gelb; sonst rot`
 
-**Literatur:** VDI 4640 empfiehlt für wirtschaftliche Dublettenanlagen eine **Transmissivität T > 5×10⁻³ m²/s** (nicht nur k_f). Ein dünner, sehr durchlässiger Aquifer kann unzureichend sein, ein dicker mit mittlerem k_f ausreichend.
+**Bewertung:** Die Hydraulik-Ampel nutzt jetzt korrekt die Transmissivität T statt nur k_f. Die Schwellwerte sind konform mit VDI 4640 (T > 10⁻³ m²/s für wirtschaftliche Dubletten).
 
-**Empfehlung:** Schwellwert auf T = k_f × Mächtigkeit > 1×10⁻³ m²/s umstellen.
+**Literatur:** VDI 4640 Blatt 1, Kühn (2012).
 
 ---
 
-## 10. Forschungsstand: Optimales ΔT
+## 10. Dubletten-Dimensionierung mit WP-Beitrag ✅ (Bug behoben)
+
+**Formel im Code (alt):** `n = ceil(Q_Ziel / Q_th_Doublette)`
+
+**Problem:** Die Zielleistung wurde als reines Geothermie-Extraktionsziel behandelt. Bei aktiver Wärmepumpe addiert diese jedoch W_el zur Quellwärme: Q_geliefert = Q_geo + W_el = Q_geo × COP/(COP−1). Das System wurde systematisch überdimensioniert.
+
+**Numerisches Beispiel** (T_GW = 25 °C, T_VL = 90 °C, COP = 2,79):
+- Alter Code: Q_geo_benötigt = 5.000 kW → viele Doubletten für volle Zielleistung
+- Korrigiert: Q_geo_benötigt = 5.000 × (2,79−1)/2,79 = **3.208 kW** → weniger Doubletten nötig
+- Q_geliefert = Q_geo × COP/(COP−1) = Q_geo + W_el ≥ 5.000 kW ✅
+
+**Korrigierte Formel:** `Q_geo_benötigt = Q_Ziel × (COP−1)/COP` (wenn WP aktiv, d.h. T_VL > T_GW)
+
+Bei Direktnutzung (T_GW ≥ T_VL) gilt weiterhin: `Q_geo_benötigt = Q_Ziel`.
+
+---
+
+## 11. Default-Werte ✅ (korrigiert)
+
+**Problem:** T_GW = 16 °C bei Tiefe = 500 m war inkonsistent mit dem geothermischen Gradienten (~3 °C/100 m). Bei 500 m Tiefe und einer Oberflächentemperatur von ~10 °C ergibt sich T_GW ≈ 25 °C.
+
+**Korrektur:** T_GW-Default auf 25 °C, Bohrloch-Abstand auf 500 m angehoben (war 100 m → Durchbruchszeit nur 2 Monate).
+
+---
+
+## 12. Thermik-Ampel ✅ (korrigiert)
+
+**Problem:** Die alte Thermik-Ampel verglich `Q_th_Doublette ≥ Q_Ziel/n × 0,95`. Da `n = ceil(Q_Ziel/Q_th)`, war diese Bedingung mathematisch immer erfüllt → Ampel war stets grün.
+
+**Korrektur:** Die Ampel vergleicht jetzt die tatsächlich gelieferte Leistung (Q_geo + W_el) mit der Zielleistung: grün ≥ 99 %, gelb ≥ 80 %, rot < 80 %.
+
+---
+
+## 13. Forschungsstand: Optimales ΔT
 
 Es gibt **keine universelle** wissenschaftliche Antwort auf „das ideale ΔT". Die optimale Reinjektionstemperatur ist ein Abwägungsproblem:
 
@@ -156,14 +189,17 @@ Es gibt **keine universelle** wissenschaftliche Antwort auf „das ideale ΔT". 
 
 | Formel | Bewertung |
 |---|---|
-| Thermische Leistung | ✅ korrigiert (war ×1000 falsch) |
-| Tauchpumpenleistung | ✅ korrigiert (war ×82 zu niedrig) |
-| Elektr. WP-Leistung | ✅ korrigiert (war Q/COP statt Q/(COP−1), ~69% zu niedrig) |
+| Thermische Leistung | ✅ korrigiert (Review 1: war ×1000 falsch) |
+| Tauchpumpenleistung | ✅ korrigiert (Review 1: war ×82 zu niedrig) |
+| Elektr. WP-Leistung | ✅ korrigiert (Review 1: Q/COP → Q/(COP−1)) |
+| Dubletten-Dimensionierung | ✅ korrigiert (Review 2: WP-Beitrag berücksichtigt) |
 | Durchbruchszeit (Drost) | ✅ korrekt, aber vereinfacht |
 | COP (Carnot×50%) | ✅ wissenschaftlich valide |
 | LMTD & WT-Fläche | ✅ korrekt |
 | Transmissivität | ✅ korrekt |
+| Hydraulik-Ampel | ✅ korrigiert (nutzt jetzt T statt nur k_f) |
+| Thermik-Ampel | ✅ korrigiert (Review 2: war immer grün) |
+| Default-Werte | ✅ korrigiert (Review 2: T_GW & Abstand plausibel) |
 | Materialklassen | ⚠️ TDS zu simpel, Cl⁻ fehlt |
-| Hydraulik-Ampel | ⚠️ besser mit T statt k_f allein |
 
 Der Rechner ist **für eine erste Vorauslegung (Machbarkeitsebene) geeignet**. Für Investitionsentscheidungen und Genehmigungsverfahren sind numerische 3D-Simulationen und hydrogeologische Gutachten erforderlich.

@@ -4,6 +4,8 @@ Einmaliger Aufwand: ~10 Minuten. Danach landet jedes Feedback strukturiert in ei
 Postgres-Datenbank – und dieselbe Supabase-Instanz kann später auch den **Login**
 übernehmen (kein weiterer Dienst nötig).
 
+> **Status:** Diese Anleitung ist für DeltaT aktuell (Stand März 2026) und wurde mit einem echten Projekt getestet.
+
 ---
 
 ## Schritt 1 – Supabase-Projekt anlegen
@@ -49,6 +51,8 @@ CREATE POLICY "Auth darf lesen"
   USING (true);
 ```
 
+> **Alternative (ohne SQL):** Im **Table Editor** → **New Table** → Spalten einzeln anlegen und RLS manuell aktivieren. Der SQL-Weg ist schneller und reproduzierbarer.
+
 ---
 
 ## Schritt 3 – API-Credentials holen
@@ -80,6 +84,31 @@ window.VENCLY_CONFIG = {
 
 Fertig. Ab sofort wird jedes abgesendete Feedback in Supabase gespeichert.
 
+**Verifizieren:**
+1. `delta-t.html` im Browser öffnen
+2. Unten in der App rechts das Feedback-Panel aufklappen (Tab „Feedback")
+3. Typ wählen (Idee / Bug / Wunsch), Text eintippen, „Feedback senden" klicken
+4. Bei Erfolg: grüne Bestätigung „✅ Gespeichert in Supabase!"
+5. In Supabase: **Table Editor → feedback** → der neue Eintrag sollte sichtbar sein
+
+Wenn stattdessen „Dev-Modus" angezeigt wird: `config.js` fehlt oder wird nicht geladen.
+
+---
+
+## Schritt 5 – Deployment auf GitHub Pages
+
+Für das automatische Deployment gibst du die Credentials als **GitHub Secrets** an:
+
+1. Repo auf GitHub öffnen → **Settings → Secrets and variables → Actions**
+2. **New repository secret** → folgende zwei anlegen:
+   ```
+   SUPABASE_URL      = https://abcdefgh.supabase.co
+   SUPABASE_ANON_KEY = sb_publishable_...
+   ```
+3. Push nach `main` → GitHub Actions erstellt `config.js` zur Build-Zeit und deployt zu Pages
+
+Die Workflow-Datei ist in `.github/workflows/deploy.yml`.
+
 ---
 
 ## Feedback ansehen
@@ -96,8 +125,13 @@ ORDER BY created_at DESC
 LIMIT 50;
 ```
 
-**Option C – Supabase Studio (automatisches Dashboard)**
-Dashboard → **Reports** oder einfach im Table Editor mit dem Filter-Button arbeiten.
+**Option C – Filter auf ein Projekt**
+```sql
+SELECT created_at, type, name, message, inputs_snapshot
+FROM feedback
+WHERE project = 'DeltaT'
+ORDER BY created_at DESC;
+```
 
 ---
 
@@ -138,10 +172,23 @@ const { data: { user } } = await sb.auth.getUser();
 
 ---
 
+## Troubleshooting
+
+| Problem | Ursache | Lösung |
+|---|---|---|
+| "Dev-Modus" wird angezeigt | `config.js` fehlt oder Platzhalter | Datei anlegen und echte Keys eintragen |
+| `401 Unauthorized` beim Senden | Falscher Key oder RLS-Policy fehlt | Key prüfen, RLS-Policies aus Schritt 2 ausführen |
+| `42501 new row violates row-level security` | INSERT-Policy fehlt | SQL aus Schritt 2 nochmal ausführen |
+| Keys im Browser sichtbar | ✅ Das ist ok | Publishable-Keys sind für Frontend-Nutzung gedacht (RLS schützt die Daten) |
+
+---
+
 ## Dateien-Übersicht
 
 | Datei | Beschreibung |
 |---|---|
 | `delta-t.html` | Geothermie-Rechner mit Supabase-Feedback |
+| `config.js` | **Gitignored** – enthält deine Supabase-Credentials |
+| `config.example.js` | Vorlage für `config.js` |
 | `vencly-project-template.html` | Wiederverwendbares Template mit Supabase-Feedback |
 | `SUPABASE_SETUP.md` | Diese Anleitung |
